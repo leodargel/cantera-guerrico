@@ -1,4 +1,25 @@
-<!DOCTYPE html>
+<!DOC
+
+    <!-- ── DATOS: Backup / Restore / Sync ── -->
+    <div class="chart-card" style="margin-bottom:1.2rem;border-left:3px solid var(--success);">
+        <div class="chart-header">
+            <span><i class="ph-fill ph-database" style="color:var(--success);"></i> Gestión de Datos</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;">
+            <div id="nav-status-pill" class="status-pill" onclick="sincronizarOneDrive()" title="Sincronizar con OneDrive" style="cursor:pointer;padding:8px 16px;font-size:0.82rem;">
+                <i class="ph ph-cloud-arrow-down"></i> <span id="nav-fecha-hoy">Sincronizar OneDrive</span>
+            </div>
+            <button onclick="exportarDatos()" style="background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.4);color:var(--success,#22c55e);border-radius:8px;padding:8px 18px;font-size:0.82rem;cursor:pointer;font-weight:700;">
+                💾 Backup (Exportar JSON)
+            </button>
+            <label style="background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.4);color:var(--accent);border-radius:8px;padding:8px 18px;font-size:0.82rem;cursor:pointer;font-weight:700;">
+                📂 Restore (Importar JSON) <input type="file" accept=".json" style="display:none;" onchange="importarDatos(this)">
+            </label>
+        </div>
+        <p style="font-size:0.72rem;color:var(--text-dim);margin-top:8px;">Backup exporta todos los datos a un archivo JSON. Restore los recupera desde ese archivo.</p>
+    </div>
+
+TYPE html>
 <html lang="es">
 <head>
 
@@ -936,17 +957,15 @@ body.theme-light .tarea-badge { background: rgba(0,0,0,0.06); }
 }
 
 @media (max-width: 768px) {
-    .top-navbar { padding: 0.35rem 0.6rem !important; gap: 5px; flex-wrap: nowrap; }
-    .logo-wrapper { gap: 5px; flex-shrink: 1; min-width: 0; max-width: 120px; }
-    .logo-badge { width: 28px !important; height: 28px !important; font-size: 0.7rem !important; flex-shrink: 0; }
-    .logo-title { font-size: 0.72rem !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    /* Header — mobile compacto */
+    .top-navbar { padding: 0.4rem 0.6rem !important; }
+    .logo-wrapper { flex: 1; min-width: 0; max-width: 180px; }
+    .logo-title { font-size: 0.72rem !important; }
     .logo-title span, .logo-wrapper small { display: none !important; }
-    #nav-fecha-hoy { padding: 4px 8px !important; font-size: 0.72rem !important; }
-    input[type="month"] { font-size: 0.72rem !important; padding: 3px 6px !important; max-width: 130px; }
-    #header-turno-badge { padding: 3px 7px !important; gap: 4px !important; font-size: 0.68rem !important; }
+    input[type="month"] { font-size: 16px !important; max-width: 140px; padding: 4px 6px !important; }
+    #header-turno-badge { padding: 4px 8px !important; gap: 4px !important; font-size: 0.7rem !important; }
     #header-turno-restante { display: none !important; }
-    #pwa-install-btn { display: none !important; }
-    .top-controls { gap: 4px; flex-shrink: 0; }
+    #header-reloj-mini { font-size: 0.78rem !important; }
 
     .nav-menu { display: flex !important; overflow-x: auto; overflow-y: hidden; gap: 4px; padding: 5px 8px;
         -webkit-overflow-scrolling: touch; scrollbar-width: none; }
@@ -1037,41 +1056,31 @@ body.theme-light .tarea-badge { background: rgba(0,0,0,0.06); }
 <body>
 
 <header class="top-navbar">
-    <div class="logo-wrapper">
-        <!-- Logo placeholder: reemplazá src con tu imagen real -->
-        <div style="width:46px;height:46px;background:linear-gradient(135deg,#1d4ed8,#3b82f6);border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:1.1rem;box-shadow:0 4px 12px rgba(59,130,246,0.4);">AG</div>
-        <div>
-            <div class="logo-title">Dashboard Ejecutivo — <span>Adolfo Guerrico SA</span></div>
-            <small>v4.2 — Sistema Integrado de Control Operativo</small>
+    <div style="display:flex;align-items:center;justify-content:space-between;width:100%;gap:8px;">
+        <!-- Logo -->
+        <div class="logo-wrapper">
+            <div class="logo-badge" style="width:36px;height:36px;background:linear-gradient(135deg,#1d4ed8,#3b82f6);border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:0.95rem;flex-shrink:0;">AG</div>
+            <div style="min-width:0;">
+                <div class="logo-title">Dashboard Ejecutivo — <span>Adolfo Guerrico SA</span></div>
+                <small>v4.2 — Sistema Integrado de Control Operativo</small>
+            </div>
         </div>
-    </div>
-    <div class="top-controls">
-        <div id="nav-status-pill" class="status-pill" onclick="sincronizarOneDrive()" title="Sincronizar con OneDrive">
-            <i class="ph ph-cloud-arrow-down"></i> <span id="nav-fecha-hoy">Sincronizar</span>
-        </div>
-        <div class="time-machine">
+        <!-- Mes + Turno + Tema -->
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
             <input type="month" id="global-month-filter" title="Mes de Análisis">
+            <div id="header-turno-badge" style="display:none;">
+                <span id="header-turno-icon"></span>
+                <span id="header-turno-texto"></span>
+                <span id="header-reloj-mini"></span>
+                <span id="header-turno-restante"></span>
+            </div>
+            <button id="pwa-install-btn" onclick="installPWA()" style="display:none;background:rgba(217,119,6,0.15);border:1px solid rgba(217,119,6,0.3);color:var(--accent);border-radius:8px;padding:5px 8px;font-size:0.72rem;cursor:pointer;font-weight:700;">
+                <i class="ph-fill ph-device-mobile"></i>
+            </button>
+            <button id="theme-toggle" onclick="toggleTheme()" title="Cambiar tema" style="padding:6px 10px;min-width:36px;justify-content:center;border-radius:8px;">
+                <i id="theme-toggle-icon" class="ph ph-sun" style="font-size:1.1rem;"></i>
+            </button>
         </div>
-        <button onclick="exportarDatos()" title="Exportar datos a JSON" style="background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.4);color:var(--success,#22c55e);border-radius:8px;padding:6px 12px;font-size:0.78rem;cursor:pointer;font-weight:700;">
-            💾 Backup
-        </button>
-        <label title="Restaurar datos desde JSON" style="background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.4);color:var(--accent);border-radius:8px;padding:6px 12px;font-size:0.78rem;cursor:pointer;font-weight:700;">
-            📂 Restore <input type="file" accept=".json" style="display:none;" onchange="importarDatos(this)">
-        </label>
-        <div id="header-turno-badge" style="display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:0.78rem;font-weight:600;background:rgba(251,191,36,0.15);color:var(--warning);cursor:default;transition:background 0.3s,color 0.3s;">
-            <span id="header-turno-icon" style="font-size:0.9rem;">☀️</span>
-            <span id="header-turno-texto" style="font-weight:700;">Turno Día</span>
-            <span style="opacity:0.5;font-size:0.7rem;">|</span>
-            <span id="header-reloj-mini" style="font-family:'Rajdhani',monospace;font-size:0.88rem;font-weight:800;letter-spacing:0.5px;"></span>
-            <span style="opacity:0.5;font-size:0.7rem;">|</span>
-            <span id="header-turno-restante" style="font-size:0.7rem;opacity:0.8;"></span>
-        </div>
-        <button id="pwa-install-btn" onclick="installPWA()" title="Instalar app en el celular" style="display:none;background:rgba(217,119,6,0.15);border:1px solid rgba(217,119,6,0.3);color:var(--accent);border-radius:8px;padding:6px 10px;font-size:0.78rem;cursor:pointer;font-weight:700;gap:5px;align-items:center;">
-            <i class="ph-fill ph-device-mobile"></i> Instalar
-        </button>
-        <button id="theme-toggle" onclick="toggleTheme()" title="Cambiar tema" style="padding:6px 10px;min-width:38px;justify-content:center;">
-            <i id="theme-toggle-icon" class="ph ph-sun" style="font-size:1.1rem;"></i>
-        </button>
     </div>
 </header>
 
