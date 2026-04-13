@@ -970,6 +970,21 @@ body.theme-light .tarea-badge { background: rgba(0,0,0,0.06); }
     .kpi-smart-data { margin-top: 3px !important; }
     .trend-badge { font-size: 0.58rem !important; padding: 2px 5px !important; margin-top: 3px !important; }
     .kpi-tooltip { display: none !important; }
+    /* Cap card height - no expanding */
+    .kpi-card { max-height: 140px !important; }
+    /* Trend badges - NUCLEAR override of inline styles */
+    #trend-prod, #trend-desp, #trend-fuel, #trend-cost,
+    #trend-stock, #trend-ratio { 
+        font-size: 0.6rem !important; 
+        padding: 1px 4px !important; 
+        margin-top: 2px !important;
+        display: inline-block !important;
+        max-width: 100% !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+    }
+    /* The big N/A, Sin datos, Falta cargar USD come from these badges */
 
     .grid-main { grid-template-columns: 1fr !important; gap: 0.6rem !important; }
     .chart-card { padding: 0.65rem !important; }
@@ -1108,7 +1123,7 @@ body.theme-light .tarea-badge { background: rgba(0,0,0,0.06); }
                 </div>
                 <div class="kpi-smart-data" style="margin-top:4px;">
                     <div class="smart-subtext" style="font-size:0.7rem;">Prom: <b id="kpi-avg-dia">0</b> Tn/día</div>
-                    <span id="trend-prod" class="trend-badge trend-neutral" style="font-size:0.65rem;margin-top:2px;display:inline-block;"></span>
+                    <span id="trend-prod" class="trend-badge trend-neutral" style="font-size:0.62rem;margin-top:2px;display:inline-block;max-width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;"></span>
                     <div style="background:rgba(128,128,128,0.1);border-radius:4px;height:4px;margin-top:4px;overflow:hidden;">
                         <div id="kpi-prod-bar" style="height:100%;background:var(--success,#22c55e);width:0%;transition:width 1s;border-radius:4px;"></div>
                     </div>
@@ -1129,7 +1144,7 @@ body.theme-light .tarea-badge { background: rgba(0,0,0,0.06); }
                 </div>
                 <div class="kpi-smart-data" style="margin-top:4px;">
                     <div class="smart-subtext">Proyección: <b id="kpi-proy-despacho">0</b> Tn</div>
-                    <span id="trend-desp" class="trend-badge trend-neutral" style="font-size:0.65rem;margin-top:2px;display:inline-block;"></span>
+                    <span id="trend-desp" class="trend-badge trend-neutral" style="font-size:0.62rem;margin-top:2px;display:inline-block;max-width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;"></span>
                 </div>
             </div>
         </div>
@@ -1163,7 +1178,7 @@ body.theme-light .tarea-badge { background: rgba(0,0,0,0.06); }
                 </div>
                 <div class="kpi-smart-data" style="margin-top:4px;">
                     <div id="kpi-comb-litros" class="smart-subtext">Cargá los litros abajo ↓</div>
-                    <span id="trend-fuel" class="trend-badge trend-neutral" style="font-size:0.65rem;margin-top:2px;display:inline-block;"></span>
+                    <span id="trend-fuel" class="trend-badge trend-neutral" style="font-size:0.62rem;margin-top:2px;display:inline-block;max-width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;"></span>
                     <div id="kpi-comb-estado" class="smart-subtext" style="font-weight:700;"></div>
                 </div>
             </div>
@@ -1181,7 +1196,7 @@ body.theme-light .tarea-badge { background: rgba(0,0,0,0.06); }
                 </div>
                 <div class="kpi-smart-data" style="margin-top:4px;">
                     <div id="kpi-gasto-total" class="smart-subtext">Total: $ 0</div>
-                    <span id="trend-cost" class="trend-badge trend-neutral" style="font-size:0.65rem;margin-top:2px;display:inline-block;"></span>
+                    <span id="trend-cost" class="trend-badge trend-neutral" style="font-size:0.62rem;margin-top:2px;display:inline-block;max-width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;"></span>
                     <div id="kpi-costo-estado" class="smart-subtext"></div>
                 </div>
             </div>

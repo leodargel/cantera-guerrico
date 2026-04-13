@@ -3,7 +3,7 @@
  * Cachea todos los assets para funcionar offline
  */
 
-const CACHE_NAME = 'guerrico-v8';
+const CACHE_NAME = 'guerrico-v9';
 
 const ASSETS_TO_CACHE = [
   './',

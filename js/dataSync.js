@@ -265,7 +265,7 @@ window.syncAndRefreshData = function() {
     // Trends
     const calculateTrend = (id, cur, prev, invert = false) => {
         const el = document.getElementById(id); if (!el) return;
-        if (!prev || prev === 0) { el.innerText = 'N/A'; el.className = 'trend-badge trend-neutral'; return; }
+        if (!prev || prev === 0) { el.innerHTML = '<span style="font-size:0.62rem;">—</span>'; el.className = 'trend-badge trend-neutral'; return; }
         const diff = ((cur - prev) / prev) * 100;
         const isGood = invert ? (diff <= 0) : (diff >= 0);
         el.innerText = `${diff > 0 ? '↑' : '↓'} ${Math.abs(diff).toFixed(1)}% vs mes ant.`;
@@ -278,7 +278,7 @@ window.syncAndRefreshData = function() {
           prevRatio = appState.monthlyData.produccion[prevMonth] > 0 ? (appState.monthlyData.diesel[prevMonth] / appState.monthlyData.produccion[prevMonth]) : 0;
     if (fuelMes === 0) { 
         const bF = document.getElementById('trend-fuel'); 
-        if (bF) { bF.innerText = 'Sin datos'; bF.className = 'trend-badge trend-neutral'; } 
+        if (bF) { bF.innerHTML = '<span style="font-size:0.62rem;">—</span>'; bF.className = 'trend-badge trend-neutral'; } 
     } else calculateTrend('trend-fuel', curRatio, prevRatio, true);
 
     const curCostTn = prodMes > 0 ? (costMes / prodMes) : 0, 
@@ -287,7 +287,7 @@ window.syncAndRefreshData = function() {
           prevCostTn = prevProd > 0 ? (prevCostMes / prevProd) : 0;
     if (costMes === 0) { 
         const bC = document.getElementById('trend-cost'); 
-        if (bC) { bC.innerText = 'Falta cargar USD'; bC.className = 'trend-badge trend-neutral'; } 
+        if (bC) { bC.innerHTML = '<span style="font-size:0.62rem;">—</span>'; bC.className = 'trend-badge trend-neutral'; } 
     } else calculateTrend('trend-cost', curCostTn, prevCostTn, true);
 
     // Smart subtexts costs — siempre en $ (los valores del Excel son pesos)
