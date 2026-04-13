@@ -325,7 +325,6 @@ window.procesarExcelFlotaPesada = function(fileArg) {
             }
 
             syncAndRefreshData();
-            if (typeof updateFlotaPesadaUI === 'function') updateFlotaPesadaUI();
             if (statusEl) { 
                 statusEl.style.background = 'rgba(34,197,94,0.15)'; 
                 statusEl.style.color = 'var(--success)';
