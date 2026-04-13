@@ -61,10 +61,10 @@ window.procesarExcelFlotaLiviana = function(fileArg) {
 
                 headers.forEach(function(h) {
                     var hn = _norm(h);
-                    // Descripción principal (J) — not "Descripción Costeo"
-                    if (hn === 'descripcion' || hn === 'descripci') keyDesc = h;
-                    // Descripción Costeo (K) — has "costeo" in it
-                    if (hn.includes('costeo')) keyCateg = h;
+                    // Categoría (Descripción Costeo) — check FIRST before Descripción
+                    if (hn.includes('costeo')) { keyCateg = h; return; }
+                    // Descripción (J) — only if not costeo
+                    if (hn === 'descripcion' || hn.startsWith('descripci')) { if (!keyDesc) keyDesc = h; }
                     // Valor (T)
                     if (hn === 'valor' || hn === 'valor"') keyValor = h;
                     // Mes de Contabilización (V)
@@ -72,14 +72,8 @@ window.procesarExcelFlotaLiviana = function(fileArg) {
                     // Ubicación Técnica (X)
                     if (hn.includes('ubicacion tecnica') || hn.includes('ubicacion tec')) keyUbic = h;
                 });
-
-                // Fallback: if descripcion matched costeo too, find exact 'descripcion' only
-                if (keyDesc === keyCateg && keyCateg !== '') {
-                    headers.forEach(function(h) {
-                        var hn = _norm(h);
-                        if (hn === 'descripcion' && !hn.includes('costeo')) keyDesc = h;
-                    });
-                }
+                // If still no keyDesc, use first header
+                if (!keyDesc && headers.length > 0) keyDesc = headers[0];
 
                 if (!keyValor || !keyUbic) return; // can't process without these
 
@@ -146,6 +140,7 @@ window.procesarExcelFlotaLiviana = function(fileArg) {
             appState.data.gastosFlota = appState.data.gastosFlota.concat(allItems);
             syncAndRefreshData();
             renderExpedientesFlota();
+            if (typeof updateFlotaLivianaCharts === 'function') updateFlotaLivianaCharts();
 
             var total = allItems.reduce(function(s,i){ return s + i.monto; }, 0);
             var vehiculos = Object.keys(allItems.reduce(function(acc,i){ acc[i.unidad]=1; return acc; }, {})).length;
@@ -385,6 +380,7 @@ window.cerrarExpediente = function(e) {
 window.renderFlotaLiviana = function() {
     // Populate select + expedientes grid
     renderExpedientesFlota();
+    if (typeof updateFlotaLivianaCharts === 'function') setTimeout(updateFlotaLivianaCharts, 100);
 
     // Expediente panel via select
     var sel = document.getElementById('select-expediente');
@@ -451,3 +447,313 @@ window.renderFlotaLiviana = function() {
     });
 };
 
+
+// ══════════════════════════════════════════════════════════════
+// FLOTA PESADA — mismo sistema que Flota Liviana
+// Excel: Compras_mensuales_Año_2026.xls
+// Columnas iguales: J=Descripción, K=Desc.Costeo, T=Valor, V=Mes, X=Ubicación Técnica
+// ══════════════════════════════════════════════════════════════
+
+window.procesarExcelFlotaPesada = function(fileArg) {
+    var file = (fileArg instanceof File) ? fileArg
+             : document.getElementById('file-pesada') && document.getElementById('file-pesada').files[0];
+    if (!file) return;
+    window._lastPesadaFile = file;
+
+    var filtro  = (document.getElementById('pesada-filtro-costeo') || {}).value || 'TODOS';
+    var statusEl = document.getElementById('pesada-status');
+    if (statusEl) { statusEl.style.display='flex'; statusEl.style.background='rgba(59,130,246,0.1)'; statusEl.innerHTML='⟳ Procesando...'; }
+
+    var reader = new FileReader();
+    reader.onload = function(evt) {
+        try {
+            var wb = XLSX.read(new Uint8Array(evt.target.result), {type:'array', cellDates:true, cellNF:false, cellStyles:false});
+
+            var allItems = [];
+            var mesesMap = {
+                'enero':'01','febrero':'02','marzo':'03','abril':'04',
+                'mayo':'05','junio':'06','julio':'07','agosto':'08',
+                'septiembre':'09','octubre':'10','noviembre':'11','diciembre':'12'
+            };
+
+            var SKIP_KEYWORDS = [
+                'total de gastos','total gastos','sub total','subtotal',
+                'diferencia','combustible de camion'
+            ];
+
+            wb.SheetNames.forEach(function(sheetName) {
+                // Solo procesar hojas de gastos del mes (no "pend")
+                var snorm = _norm(sheetName);
+                if (snorm.includes('pend')) return;
+
+                var ws = wb.Sheets[sheetName];
+                var objRows = [];
+                try { objRows = XLSX.utils.sheet_to_json(ws, {defval:null, raw:true}); }
+                catch(e) { return; }
+                if (!objRows || objRows.length === 0) return;
+
+                var headers = Object.keys(objRows[0] || {});
+                var keyDesc='', keyCateg='', keyValor='', keyMes='', keyUbic='';
+
+                headers.forEach(function(h) {
+                    var hn = _norm(h);
+                    if (hn === 'descripcion' && !hn.includes('costeo')) keyDesc = h;
+                    if (hn.includes('costeo')) keyCateg = h;
+                    if (hn === 'valor' || hn === 'valor"') keyValor = h;
+                    if (hn.includes('mes de contab') || hn === 'mes') keyMes = h;
+                    if (hn.includes('ubicacion tecnica') || hn.includes('ubicacion tec')) keyUbic = h;
+                });
+
+                if (!keyValor || !keyUbic) return;
+
+                objRows.forEach(function(row) {
+                    var desc  = (row[keyDesc]  || '').toString().trim();
+                    var categ = keyCateg ? (row[keyCateg] || '').toString().trim() : '';
+                    var ubic  = (row[keyUbic]  || '').toString().trim();
+                    var mesRaw= keyMes ? (row[keyMes] || '') : '';
+
+                    if (!desc || !ubic) return;
+
+                    var dl = _norm(desc);
+                    if (SKIP_KEYWORDS.some(function(k){ return dl.includes(k); })) return;
+                    if (dl.startsWith('total')) return;
+
+                    // Filtrar por categoría si no es TODOS
+                    if (filtro !== 'TODOS' && _norm(categ) !== _norm(filtro)) return;
+
+                    var valor = _parseValFlota(row[keyValor]);
+                    if (valor === 0) return;
+
+                    var mesStr = _norm(mesRaw.toString());
+                    var mesNum = null;
+                    for (var mn in mesesMap) {
+                        if (mesStr.includes(mn)) { mesNum = mesesMap[mn]; break; }
+                    }
+                    if (!mesNum) {
+                        var sn2 = _norm(sheetName);
+                        for (var mn in mesesMap) {
+                            if (sn2.includes(mn)) { mesNum = mesesMap[mn]; break; }
+                        }
+                    }
+
+                    var yearMatch = mesRaw.toString().match(/20\d{2}/) || sheetName.match(/20\d{2}/);
+                    var anio = yearMatch ? yearMatch[0] : new Date().getFullYear().toString();
+                    var fecha = anio + '-' + (mesNum || '01');
+
+                    allItems.push({
+                        fecha:     fecha,
+                        unidad:    ubic,
+                        tarea:     desc,
+                        categoria: categ,
+                        monto:     valor,
+                        anio:      anio
+                    });
+                });
+            });
+
+            if (allItems.length === 0) {
+                if (statusEl) { statusEl.style.background='rgba(239,68,68,0.1)'; statusEl.innerHTML='❌ No se encontraron datos. Verificá el filtro o las columnas del archivo.'; }
+                return;
+            }
+
+            // Save
+            var fechasNuevas = allItems.reduce(function(a,i){ a[i.fecha]=true; return a; }, {});
+            if (!appState.data.gastosFlotaPesada) appState.data.gastosFlotaPesada = [];
+            appState.data.gastosFlotaPesada = appState.data.gastosFlotaPesada.filter(function(g){ return !fechasNuevas[g.fecha]; });
+            appState.data.gastosFlotaPesada = appState.data.gastosFlotaPesada.concat(allItems);
+            syncAndRefreshData();
+            renderExpedientesPesada();
+            if (typeof updateFlotaPesadaCharts === 'function') updateFlotaPesadaCharts();
+
+            var total     = allItems.reduce(function(s,i){ return s+i.monto; },0);
+            var vehiculos = Object.keys(allItems.reduce(function(a,i){ a[i.unidad]=1; return a; },{})).length;
+            if (statusEl) {
+                statusEl.style.background='rgba(74,222,128,0.1)';
+                statusEl.innerHTML='✅ <b>'+allItems.length+' registros</b> importados — '+vehiculos+' equipos — Total: <b>$\u00a0'+total.toLocaleString('es-AR',{maximumFractionDigits:0})+'</b>';
+            }
+
+        } catch(err) {
+            if (statusEl) { statusEl.style.background='rgba(239,68,68,0.1)'; statusEl.innerHTML='❌ Error: '+err.message; }
+            console.error('[PesadaImport]', err);
+        }
+    };
+    reader.readAsArrayBuffer(file);
+};
+
+window.limpiarImportPesada = function() {
+    if (!confirm('¿Borrar todos los datos de flota pesada importados?')) return;
+    appState.data.gastosFlotaPesada = [];
+    syncAndRefreshData();
+    renderExpedientesPesada();
+    var st = document.getElementById('pesada-status');
+    if (st) st.style.display = 'none';
+};
+
+window.renderExpedientesPesada = function() {
+    if (typeof updateFlotaPesadaCharts === 'function') setTimeout(updateFlotaPesadaCharts, 100);
+    var grid = document.getElementById('pesada-expedientes-grid');
+    if (!grid) return;
+
+    var gastos = appState.data.gastosFlotaPesada || [];
+    if (gastos.length === 0) {
+        grid.innerHTML = '<p style="color:var(--text-dim);font-size:0.85rem;padding:10px 0;">Importá el Excel para ver los expedientes por equipo.</p>';
+        return;
+    }
+
+    var equipos = {};
+    gastos.forEach(function(g) {
+        var u = g.unidad || 'Sin asignar';
+        if (!equipos[u]) equipos[u] = { nombre:u, gastos:[], total:0 };
+        equipos[u].gastos.push(g);
+        equipos[u].total += parseFloat(g.monto||0);
+    });
+
+    var sorted = Object.values(equipos).sort(function(a,b){ return b.total-a.total; });
+
+    grid.innerHTML = sorted.map(function(v) {
+        var mns=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+        var ultimos = v.gastos.slice().sort(function(a,b){ return (b.fecha||'').localeCompare(a.fecha||''); }).slice(0,3);
+        var lastP = ((ultimos[0]||{}).fecha||'').split('-');
+        var lastLabel = lastP[1] ? (mns[parseInt(lastP[1])-1]||'')+' '+lastP[0] : '—';
+        var fmtTotal = v.total>=1e6 ? '$\u00a0'+(v.total/1e6).toFixed(1)+'\u00a0M' : '$\u00a0'+v.total.toLocaleString('es-AR',{maximumFractionDigits:0});
+        var cats = {}; v.gastos.forEach(function(g){ cats[g.categoria]=(cats[g.categoria]||0)+g.monto; });
+        var topCat = Object.keys(cats).sort(function(a,b){ return cats[b]-cats[a]; })[0]||'—';
+
+        return '<div class="chart-card" style="padding:14px;cursor:pointer;transition:box-shadow 0.2s;" '+
+            'onmouseenter="this.style.boxShadow=\'0 4px 20px rgba(0,0,0,0.15)\'" '+
+            'onmouseleave="this.style.boxShadow=\'\'" '+
+            'onclick="abrirExpedientePesada(\''+v.nombre.replace(/'/g,"\\'")+'\')">'+
+            '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;">'+
+            '<div style="display:flex;align-items:center;gap:8px;">'+
+            '<div style="width:36px;height:36px;border-radius:8px;background:rgba(245,158,11,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;">'+
+            '<i class="ph-fill ph-truck" style="color:var(--warning);font-size:1.1rem;"></i></div>'+
+            '<div>'+
+            '<div style="font-weight:700;font-size:0.88rem;color:var(--text-main);line-height:1.2;">'+v.nombre+'</div>'+
+            '<div style="font-size:0.68rem;color:var(--text-dim);margin-top:1px;">'+v.gastos.length+' registros · último: '+lastLabel+'</div>'+
+            '</div></div>'+
+            '<div style="text-align:right;">'+
+            '<div style="font-size:1.05rem;font-weight:800;color:var(--warning);">'+fmtTotal+'</div>'+
+            '<div style="font-size:0.62rem;color:var(--text-dim);">total histórico</div>'+
+            '</div></div>'+
+            '<div style="margin-bottom:8px;"><span style="font-size:0.68rem;background:rgba(245,158,11,0.1);color:var(--warning);border-radius:4px;padding:2px 6px;font-weight:700;">'+topCat+'</span></div>'+
+            '<div style="border-top:1px solid var(--border);padding-top:8px;">'+
+            ultimos.map(function(g){
+                return '<div style="display:flex;justify-content:space-between;font-size:0.72rem;padding:3px 0;">'+
+                    '<span style="color:var(--text-dim);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:8px;">'+g.tarea+'</span>'+
+                    '<span style="color:var(--text-main);font-weight:700;white-space:nowrap;">$\u00a0'+parseFloat(g.monto).toLocaleString('es-AR',{maximumFractionDigits:0})+'</span>'+
+                    '</div>';
+            }).join('')+
+            '</div>'+
+            '<div style="margin-top:8px;font-size:0.7rem;color:var(--warning);font-weight:700;text-align:right;">Ver expediente completo →</div>'+
+            '</div>';
+    }).join('');
+
+    // Update tabla resumen
+    var tbody = document.getElementById('flota-pesada-table-body');
+    if (tbody) {
+        tbody.innerHTML = sorted.slice(0,10).map(function(v){
+            return '<tr><td><b>'+v.nombre+'</b></td><td>'+v.gastos.length+'</td>'+
+                '<td style="color:var(--warning);font-weight:700;">$\u00a0'+v.total.toLocaleString('es-AR',{maximumFractionDigits:0})+'</td></tr>';
+        }).join('');
+    }
+
+    // Update select dropdown
+    var sel = document.getElementById('select-expediente-pesado');
+    if (sel) {
+        var opts = '<option value="">Seleccioná un equipo...</option>';
+        sorted.forEach(function(v){ opts+='<option value="'+v.nombre+'">'+v.nombre+'</option>'; });
+        sel.innerHTML = opts;
+    }
+};
+
+window.abrirExpedientePesada = function(unidad) {
+    var gastos = (appState.data.gastosFlotaPesada||[]).filter(function(g){ return g.unidad===unidad; });
+    if (!gastos.length) return;
+
+    var total = gastos.reduce(function(s,g){ return s+parseFloat(g.monto||0); },0);
+    var porMes = {};
+    gastos.forEach(function(g){
+        var k = g.fecha||'—';
+        if (!porMes[k]) porMes[k]={gastos:[],total:0};
+        porMes[k].gastos.push(g);
+        porMes[k].total += parseFloat(g.monto||0);
+    });
+
+    var meses=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    var mesKeys = Object.keys(porMes).sort().reverse();
+    var promedio = mesKeys.length > 0 ? total/mesKeys.length : 0;
+
+    var fmtPesos = function(v) {
+        if (v>=1e9) return '$\u00a0'+(v/1e9).toFixed(2)+' B';
+        if (v>=1e6) return '$\u00a0'+(v/1e6).toFixed(1)+' M';
+        if (v>=1e3) return '$\u00a0'+(v/1e3).toFixed(0)+' K';
+        return '$\u00a0'+v.toLocaleString('es-AR',{maximumFractionDigits:0});
+    };
+
+    var html = '<div id="pesada-modal-overlay" onclick="cerrarExpedientePesada(event)" '+
+        'style="position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;">'+
+        '<div onclick="event.stopPropagation()" '+
+        'style="background:var(--bg-card);border-radius:14px;width:100%;max-width:820px;max-height:90vh;overflow-y:auto;padding:22px;position:relative;">'+
+
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">'+
+        '<div style="display:flex;align-items:center;gap:10px;">'+
+        '<div style="width:42px;height:42px;border-radius:10px;background:rgba(245,158,11,0.12);display:flex;align-items:center;justify-content:center;">'+
+        '<i class="ph-fill ph-truck" style="color:var(--warning);font-size:1.3rem;"></i></div>'+
+        '<div>'+
+        '<div style="font-size:1.1rem;font-weight:800;color:var(--text-main);">'+unidad+'</div>'+
+        '<div style="font-size:0.72rem;color:var(--text-dim);">'+gastos.length+' registros · '+mesKeys.length+' meses</div>'+
+        '</div></div>'+
+        '<button onclick="cerrarExpedientePesada()" style="background:rgba(128,128,128,0.1);border:none;border-radius:8px;padding:6px 12px;cursor:pointer;color:var(--text-main);font-size:1rem;">✕</button>'+
+        '</div>'+
+
+        '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;">'+
+        '<div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:8px;padding:10px 14px;">'+
+        '<div style="font-size:0.62rem;color:var(--warning);font-weight:700;text-transform:uppercase;margin-bottom:3px;">Total Invertido</div>'+
+        '<div style="font-size:1.2rem;font-weight:800;">'+fmtPesos(total)+'</div></div>'+
+        '<div style="background:rgba(245,158,11,0.05);border:1px solid rgba(245,158,11,0.15);border-radius:8px;padding:10px 14px;">'+
+        '<div style="font-size:0.62rem;color:var(--warning);font-weight:700;text-transform:uppercase;margin-bottom:3px;">Promedio Mensual</div>'+
+        '<div style="font-size:1.2rem;font-weight:800;">'+fmtPesos(promedio)+'</div></div>'+
+        '<div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:8px;padding:10px 14px;">'+
+        '<div style="font-size:0.62rem;color:#818cf8;font-weight:700;text-transform:uppercase;margin-bottom:3px;">Eventos</div>'+
+        '<div style="font-size:1.2rem;font-weight:800;">'+gastos.length+'</div></div>'+
+        '</div>'+
+
+        '<div style="display:flex;flex-direction:column;gap:12px;">'+
+        mesKeys.map(function(k){
+            var p=k.split('-');
+            var mesLabel=(meses[parseInt(p[1])-1]||p[1])+' '+p[0];
+            var mes=porMes[k];
+            return '<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden;">'+
+                '<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 14px;background:rgba(245,158,11,0.05);border-bottom:1px solid var(--border);">'+
+                '<span style="font-weight:700;font-size:0.82rem;">'+mesLabel+'</span>'+
+                '<span style="font-weight:800;font-size:0.88rem;color:var(--warning);">'+fmtPesos(mes.total)+'</span>'+
+                '</div>'+
+                '<table style="width:100%;border-collapse:collapse;">'+
+                '<thead><tr style="background:rgba(128,128,128,0.03);">'+
+                '<th style="padding:5px 12px;text-align:left;font-size:0.66rem;color:var(--text-dim);font-weight:700;border-bottom:1px solid var(--border);">Descripción</th>'+
+                '<th style="padding:5px 12px;text-align:left;font-size:0.66rem;color:var(--text-dim);font-weight:700;border-bottom:1px solid var(--border);">Categoría</th>'+
+                '<th style="padding:5px 12px;text-align:right;font-size:0.66rem;color:var(--text-dim);font-weight:700;border-bottom:1px solid var(--border);">Monto</th>'+
+                '</tr></thead><tbody>'+
+                mes.gastos.map(function(g,idx){
+                    return '<tr style="'+(idx%2===0?'':'background:rgba(128,128,128,0.02)')+'">'+
+                        '<td style="padding:6px 12px;font-size:0.75rem;">'+g.tarea+'</td>'+
+                        '<td style="padding:6px 12px;font-size:0.7rem;color:var(--text-dim);">'+(g.categoria||'—')+'</td>'+
+                        '<td style="padding:6px 12px;font-size:0.75rem;font-weight:700;text-align:right;white-space:nowrap;">$\u00a0'+parseFloat(g.monto).toLocaleString('es-AR',{maximumFractionDigits:0})+'</td>'+
+                        '</tr>';
+                }).join('')+
+                '</tbody></table></div>';
+        }).join('')+
+        '</div></div></div>';
+
+    var ex = document.getElementById('pesada-modal-overlay');
+    if (ex) ex.remove();
+    document.body.insertAdjacentHTML('beforeend', html);
+    document.body.style.overflow = 'hidden';
+};
+
+window.cerrarExpedientePesada = function(e) {
+    if (e && e.target !== document.getElementById('pesada-modal-overlay')) return;
+    var m = document.getElementById('pesada-modal-overlay');
+    if (m) m.remove();
+    document.body.style.overflow = '';
+};

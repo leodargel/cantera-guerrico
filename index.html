@@ -2032,7 +2032,22 @@ body.theme-light .tarea-badge { background: rgba(0,0,0,0.06); }
 </div><!-- end collapse alta-vehiculo --></div>
     </div>
     <div class="grid-main" style="grid-template-columns:1fr 1fr;margin-top:1.5rem;">
-        <div class="chart-card"><div class="chart-header"><span><i class="ph-fill ph-chart-bar-horizontal" style="color:var(--danger);"></i> Ranking Gastos por Unidad</span><span id="flota-liviana-mes-label" style="font-size:0.75rem;color:var(--text-dim);"></span></div><div id="chart-gastos-movil-wrap" style="height:320px;position:relative;"><canvas id="chart-gastos-movil"></canvas></div></div>
+        <div class="chart-card">
+            <div class="chart-header">
+                <span><i class="ph-fill ph-chart-bar-horizontal" style="color:var(--danger);"></i> Ranking Gastos por Unidad</span>
+                <span id="flota-liviana-mes-label" style="font-size:0.75rem;color:var(--text-dim);"></span>
+            </div>
+            <div id="chart-gastos-movil-wrap" style="height:320px;position:relative;">
+                <canvas id="chart-gastos-movil"></canvas>
+            </div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-header">
+                <span><i class="ph-fill ph-chart-line" style="color:var(--accent);"></i> Evolución de Gastos por Unidad</span>
+                <span style="font-size:0.72rem;color:var(--text-dim);">Top 5 · mensual</span>
+            </div>
+            <div style="height:260px;"><canvas id="chart-flota-evolucion"></canvas></div>
+        </div>
         <div class="chart-card">
             <div class="chart-header" style="display:flex;justify-content:space-between;align-items:center;">
                 <span>Expediente Técnico</span>
@@ -2108,7 +2123,21 @@ body.theme-light .tarea-badge { background: rgba(0,0,0,0.06); }
         </div>
     </div>
     <div class="grid-main" style="grid-template-columns:1fr 1fr;margin-top:1.5rem;">
-        <div class="chart-card"><div class="chart-header"><span>Ranking de Gastos por Equipo (Histórico)</span></div><canvas id="chart-gastos-pesada" style="max-height:250px;"></canvas></div>
+        <div class="grid-main" style="grid-template-columns:1fr 1fr;margin-top:1.5rem;">
+            <div class="chart-card">
+                <div class="chart-header">
+                    <span><i class="ph-fill ph-chart-bar-horizontal" style="color:var(--warning);"></i> Ranking de Gastos por Equipo</span>
+                    <span style="font-size:0.72rem;color:var(--text-dim);">2026</span>
+                </div>
+                <div style="height:380px;"><canvas id="chart-gastos-pesada"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-header">
+                    <span><i class="ph-fill ph-chart-bar" style="color:var(--warning);"></i> Gasto Mensual Total — Flota Pesada</span>
+                </div>
+                <div style="height:380px;"><canvas id="chart-pesada-evolucion"></canvas></div>
+            </div>
+        </div>
         <div class="chart-card">
             <div class="chart-header" style="display:flex;justify-content:space-between;align-items:center;">
                 <span>Expediente Técnico Pesado</span>

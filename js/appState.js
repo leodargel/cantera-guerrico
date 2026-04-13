@@ -125,6 +125,7 @@ const defaultData = {
     blasting: [],
     mantenimiento: [],
     gastosFlota: [],
+        gastosFlotaPesada: [],
     piezas: {},
     historialCambios: [],
     alertasDesgaste: [],

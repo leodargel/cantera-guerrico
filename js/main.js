@@ -159,6 +159,7 @@ window.showView = function(viewId) {
     if (viewId === 'configuracion' && typeof renderConfigPanel === 'function') renderConfigPanel();
     if (viewId === 'costos' && typeof renderConsumosGuardados === 'function') renderConsumosGuardados();
     if (viewId === 'flota-liviana' && typeof renderFlotaLiviana === 'function') renderFlotaLiviana();
+    if (viewId === 'mantenimiento-pesado' && typeof renderExpedientesPesada === 'function') renderExpedientesPesada();
     if (viewId === 'mantenimiento-fijo') {
         // El módulo se inicializa con la sección oculta (display:none) → getBoundingClientRect devuelve 0.
         // Esperamos dos frames de animación para garantizar que el navegador ya calculó el layout real

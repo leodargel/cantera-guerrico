@@ -350,6 +350,8 @@ window.syncAndRefreshData = function() {
     if (typeof updateCostsCharts === 'function') updateCostsCharts();
     if (typeof renderConsumosKPIs === 'function') renderConsumosKPIs();
     if (typeof renderConsumosGuardados === 'function') renderConsumosGuardados();
+    if (typeof updateFlotaLivianaCharts === 'function' && document.getElementById('chart-gastos-movil')) updateFlotaLivianaCharts();
+    if (typeof updateFlotaPesadaCharts === 'function' && document.getElementById('chart-gastos-pesada')) updateFlotaPesadaCharts();
     if (typeof updateMaintChart === 'function') updateMaintChart();
     if (typeof updateStopCharts === 'function') updateStopCharts();
     if (typeof updateSmartSummaries === 'function') updateSmartSummaries();

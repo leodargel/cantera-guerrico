@@ -518,3 +518,281 @@ window.updateMaintChart = function() {
         }
     });
 };
+
+// ══════════════════════════════════════════════════════════════
+// FLOTA LIVIANA — Ranking gastos por unidad + evolución mensual
+// ══════════════════════════════════════════════════════════════
+window.updateFlotaLivianaCharts = function() {
+    var gastos = appState.data.gastosFlota || [];
+    var mns = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+    // ── Ranking por unidad (barras horizontales) ──────────────
+    var ctxRank = document.getElementById('chart-gastos-movil');
+    if (ctxRank) {
+        var ex = Chart.getChart(ctxRank); if (ex) { try{ex.destroy();}catch(e){} }
+
+        // Agrupar por unidad, sumar todos los meses del año
+        var porUnidad = {};
+        gastos.forEach(function(g) {
+            var y = (g.fecha||'').split('-')[0];
+            if (parseInt(y) !== currentYear) return;
+            if (!porUnidad[g.unidad]) porUnidad[g.unidad] = 0;
+            porUnidad[g.unidad] += parseFloat(g.monto||0);
+        });
+
+        var sorted = Object.entries(porUnidad)
+            .sort(function(a,b){return b[1]-a[1];})
+            .slice(0, 12); // top 12
+
+        if (sorted.length === 0) {
+            ctxRank.style.display='none';
+            var noData = ctxRank.parentElement.querySelector('.no-data-fleet');
+            if (!noData) {
+                noData = document.createElement('div');
+                noData.className = 'no-data-fleet';
+                noData.style.cssText = 'padding:30px;text-align:center;color:var(--text-dim);font-size:0.82rem;';
+                noData.textContent = 'Importá el Excel de camionetas para ver el ranking';
+                ctxRank.parentElement.appendChild(noData);
+            }
+        } else {
+            ctxRank.style.display = 'block';
+            var nd = ctxRank.parentElement.querySelector('.no-data-fleet');
+            if (nd) nd.remove();
+
+            var labels = sorted.map(function(e){return e[0];});
+            var values = sorted.map(function(e){return e[1];});
+            var maxVal = Math.max.apply(null, values);
+
+            // Gradient colors from warning to accent
+            var colors = values.map(function(v, i) {
+                var pct = values.length > 1 ? i / (values.length-1) : 0;
+                var r = Math.round(245 - pct * 30);
+                var g2= Math.round(158 + pct * 10);
+                var b = Math.round(11  + pct * 100);
+                return 'rgba('+r+','+g2+','+b+',0.8)';
+            });
+
+            new Chart(ctxRank, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Gasto '+currentYear,
+                        data: values,
+                        backgroundColor: colors,
+                        borderRadius: 4,
+                        borderSkipped: false
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { callbacks: { label: function(ctx) {
+                            return '$\u00a0' + ctx.parsed.x.toLocaleString('es-AR',{maximumFractionDigits:0});
+                        }}}
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(128,128,128,0.08)' },
+                            ticks: { font:{size:9}, callback: function(v) {
+                                return v>=1e6 ? '$'+(v/1e6).toFixed(0)+'M' : v>=1e3 ? '$'+(v/1e3).toFixed(0)+'K' : '$'+v;
+                            }}
+                        },
+                        y: { ticks: { font:{size:10} } }
+                    }
+                }
+            });
+        }
+
+        // Update mes label
+        var label = document.getElementById('flota-liviana-mes-label');
+        if (label) label.textContent = sorted.length > 0 ? currentYear : '';
+    }
+
+    // ── Evolución mensual por unidad (líneas) ─────────────────
+    var ctxEvo = document.getElementById('chart-flota-evolucion');
+    if (ctxEvo) {
+        var ex2 = Chart.getChart(ctxEvo); if (ex2) { try{ex2.destroy();}catch(e){} }
+
+        // Top 5 unidades por gasto total
+        var porUnidad2 = {};
+        gastos.forEach(function(g) {
+            var y = (g.fecha||'').split('-')[0];
+            if (parseInt(y) !== currentYear) return;
+            if (!porUnidad2[g.unidad]) porUnidad2[g.unidad] = new Array(12).fill(0);
+            var m = parseInt((g.fecha||'').split('-')[1]||'1') - 1;
+            if (m >= 0 && m < 12) porUnidad2[g.unidad][m] += parseFloat(g.monto||0);
+        });
+
+        var topUnidades = Object.entries(porUnidad2)
+            .sort(function(a,b){ return b[1].reduce(function(s,v){return s+v;},0) - a[1].reduce(function(s,v){return s+v;},0); })
+            .slice(0, 5);
+
+        var COLORS_EVO = ['#f59e0b','#60a5fa','#34d399','#f87171','#a78bfa'];
+
+        if (topUnidades.length > 0) {
+            new Chart(ctxEvo, {
+                type: 'line',
+                data: {
+                    labels: mns,
+                    datasets: topUnidades.map(function(e, i) {
+                        return {
+                            label: e[0],
+                            data: e[1].map(function(v){ return v > 0 ? v : null; }),
+                            borderColor: COLORS_EVO[i % COLORS_EVO.length],
+                            backgroundColor: COLORS_EVO[i % COLORS_EVO.length].replace(')',',0.1)').replace('rgb','rgba'),
+                            borderWidth: 2,
+                            tension: 0.3,
+                            pointRadius: 4,
+                            spanGaps: false
+                        };
+                    })
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position:'bottom', labels:{ font:{size:10}, boxWidth:12 } },
+                        tooltip: { callbacks: { label: function(ctx) {
+                            return ctx.dataset.label+': $\u00a0'+ctx.parsed.y.toLocaleString('es-AR',{maximumFractionDigits:0});
+                        }}}
+                    },
+                    scales: {
+                        x: { ticks:{font:{size:10}} },
+                        y: { grid:{color:'rgba(128,128,128,0.08)'}, ticks:{font:{size:10},
+                            callback:function(v){ return v>=1e6?'$'+(v/1e6).toFixed(0)+'M':v>=1e3?'$'+(v/1e3).toFixed(0)+'K':'$'+v; }}}
+                    }
+                }
+            });
+        }
+    }
+};
+
+// ══════════════════════════════════════════════════════════════
+// FLOTA PESADA — Ranking + Evolución mensual
+// ══════════════════════════════════════════════════════════════
+window.updateFlotaPesadaCharts = function() {
+    var gastos = appState.data.gastosFlotaPesada || [];
+    var mns = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+    // ── Ranking por equipo ────────────────────────────────────
+    var ctxRank = document.getElementById('chart-gastos-pesada');
+    if (ctxRank) {
+        var ex = Chart.getChart(ctxRank); if (ex) { try{ex.destroy();}catch(e){} }
+
+        var porEquipo = {};
+        gastos.forEach(function(g) {
+            var y = (g.fecha||'').split('-')[0];
+            if (parseInt(y) !== currentYear) return;
+            if (!porEquipo[g.unidad]) porEquipo[g.unidad] = 0;
+            porEquipo[g.unidad] += parseFloat(g.monto||0);
+        });
+
+        var sorted = Object.entries(porEquipo)
+            .sort(function(a,b){return b[1]-a[1];})
+            .slice(0, 15);
+
+        if (sorted.length === 0) {
+            ctxRank.style.display = 'none';
+        } else {
+            ctxRank.style.display = 'block';
+            var colors2 = sorted.map(function(e, i) {
+                var pct = sorted.length > 1 ? i/(sorted.length-1) : 0;
+                return 'rgba('+(Math.round(245-pct*60))+','+(Math.round(158+pct*20))+','+(Math.round(11+pct*150))+',0.8)';
+            });
+
+            new Chart(ctxRank, {
+                type: 'bar',
+                data: {
+                    labels: sorted.map(function(e){return e[0];}),
+                    datasets: [{
+                        label: 'Gasto '+currentYear,
+                        data: sorted.map(function(e){return e[1];}),
+                        backgroundColor: colors2,
+                        borderRadius: 4,
+                        borderSkipped: false
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { callbacks: { label: function(ctx) {
+                            return '$\u00a0'+ctx.parsed.x.toLocaleString('es-AR',{maximumFractionDigits:0});
+                        }}}
+                    },
+                    scales: {
+                        x: { grid:{color:'rgba(128,128,128,0.08)'}, ticks:{font:{size:9},
+                            callback:function(v){ return v>=1e6?'$'+(v/1e6).toFixed(0)+'M':v>=1e3?'$'+(v/1e3).toFixed(0)+'K':'$'+v; }}},
+                        y: { ticks:{font:{size:9}} }
+                    }
+                }
+            });
+        }
+    }
+
+    // ── Evolución mensual acumulada ───────────────────────────
+    var ctxEvo2 = document.getElementById('chart-pesada-evolucion');
+    if (ctxEvo2) {
+        var ex3 = Chart.getChart(ctxEvo2); if (ex3) { try{ex3.destroy();}catch(e){} }
+
+        var mensual = new Array(12).fill(0);
+        gastos.forEach(function(g) {
+            var y = (g.fecha||'').split('-')[0];
+            if (parseInt(y) !== currentYear) return;
+            var m = parseInt((g.fecha||'').split('-')[1]||'1') - 1;
+            if (m >= 0 && m < 12) mensual[m] += parseFloat(g.monto||0);
+        });
+
+        var hasData = mensual.some(function(v){return v>0;});
+        if (hasData) {
+            new Chart(ctxEvo2, {
+                type: 'bar',
+                data: {
+                    labels: mns,
+                    datasets: [{
+                        label: 'Gasto mensual '+currentYear,
+                        data: mensual.map(function(v){ return v>0?v:null; }),
+                        backgroundColor: 'rgba(245,158,11,0.7)',
+                        borderColor: '#f59e0b',
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { callbacks: { label: function(ctx) {
+                            return '$\u00a0'+ctx.parsed.y.toLocaleString('es-AR',{maximumFractionDigits:0});
+                        }}}
+                    },
+                    scales: {
+                        x: { ticks:{font:{size:10}} },
+                        y: { grid:{color:'rgba(128,128,128,0.08)'}, beginAtZero:true,
+                            ticks:{font:{size:10}, callback:function(v){ return v>=1e6?'$'+(v/1e6).toFixed(0)+'M':v>=1e3?'$'+(v/1e3).toFixed(0)+'K':'$'+v; }}}
+                    }
+                }
+            });
+        }
+    }
+
+    // Update tabla resumen
+    var tbody = document.getElementById('flota-pesada-table-body');
+    if (tbody && gastos.length > 0) {
+        var porEquipo2 = {};
+        gastos.forEach(function(g) {
+            if (!porEquipo2[g.unidad]) porEquipo2[g.unidad] = {count:0, total:0};
+            porEquipo2[g.unidad].count++;
+            porEquipo2[g.unidad].total += parseFloat(g.monto||0);
+        });
+        var rows = Object.entries(porEquipo2).sort(function(a,b){return b[1].total-a[1].total;});
+        tbody.innerHTML = rows.map(function(e){
+            return '<tr><td><b>'+e[0]+'</b></td><td>'+e[1].count+'</td>'+
+                '<td style="color:var(--warning);font-weight:700;">$\u00a0'+e[1].total.toLocaleString('es-AR',{maximumFractionDigits:0})+'</td></tr>';
+        }).join('');
+    }
+};
