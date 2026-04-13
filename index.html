@@ -986,11 +986,16 @@ body.theme-light .tarea-badge { background: rgba(0,0,0,0.06); }
     #kpi-mensual-produccion, #kpi-mensual-despacho, #kpi-mensual-balance,
     #kpi-ratio-combustible, #kpi-costo-tn { font-size: 1.25rem !important; }
     .kpi-smart-data * { font-size: 0.65rem !important; }
+    /* Ocultar proyecciones y barras en mobile — reducen altura sin perder info clave */
+    .kpi-card .smart-subtext:last-of-type,
+    #kpi-proy-mes, #kpi-proy-despacho,
+    .kpi-card div[style*="height:4px"],
+    .kpi-card div[style*="height: 4px"] { display: none !important; }
     .kpi-smart-data { margin-top: 3px !important; }
     .trend-badge { font-size: 0.58rem !important; padding: 2px 5px !important; margin-top: 3px !important; }
     .kpi-tooltip { display: none !important; }
     /* Cap card height - no expanding */
-    .kpi-card { max-height: 140px !important; }
+    .kpi-card { max-height: none !important; }
     /* Trend badges - NUCLEAR override of inline styles */
     #trend-prod, #trend-desp, #trend-fuel, #trend-cost,
     #trend-stock, #trend-ratio { 
