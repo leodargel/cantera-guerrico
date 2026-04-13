@@ -202,53 +202,71 @@ window.procesarExcelFlotaPesada = function(fileArg) {
                 return idx >= 0 ? idx : fallbackIdx;
             };
 
-            const idxFecha  = findCol(['FECHA', 'DATE', 'CONTAB'], 1); // Fallback B
-            const idxEquipo = findCol(['UBICACION', 'EQUIPO', 'MAQUINA'], 23); // Col X
-            const idxDesc   = findCol(['DESCRIPCION', 'TAREA', 'TRABAJO'], 9); // Col J
-            const idxCosto  = findCol(['VALOR', 'COSTO', 'IMPORTE', 'NETO'], 18); // Col S
-            const idxCosteo = findCol(['COSTEO', 'CENTRO'], 10); // Col K?
-            const idxNota   = findCol(['NOTA', 'PEDIDO', 'NRO'], 8); // Col I
+            const idxFecha  = findCol(['FECHA', 'DATE', 'CONTAB'], 1); 
+            const idxEquipo = findCol(['UBICACION', 'EQUIPO', 'MAQUINA'], 23); // Column X
+            const idxDesc   = findCol(['DESCRIPCION', 'TAREA', 'TRABAJO'], 9);  // Column J
+            const idxCosto  = findCol(['VALOR', 'COSTO', 'IMPORTE', 'NETO'], 18); // Column S
+            const idxNota   = findCol(['NOTA', 'PEDIDO', 'NRO'], 8); // Column I
+            const idxCosteo = findCol(['COSTEO', 'CENTRO'], 10);
 
             let registros = [];
             for (let i = headerIdx + 1; i < rowsRaw.length; i++) {
                 const row = rowsRaw[i];
                 if (!row || row.length === 0) continue;
                 
-                // Validar equipo y valor
+                // MODO ULTRA FLEXIBLE: Buscamos las siglas en TODA la fila
+                const filaTexto = row.join('|').toUpperCase();
+                const tieneEtiqueta = filaTexto.includes('RP') && filaTexto.includes('MOV') && filaTexto.includes('VM');
+                
+                if (!tieneEtiqueta) continue;
+
                 const unidad = String(row[idxEquipo] || '').trim();
-                const monto  = _parseValFlota(row[idxCosto]);
-                if (!unidad || monto === 0) continue;
+                let monto  = _parseValFlota(row[idxCosto]);
+                
+                // Si el monto es 0, buscamos un número en CUALQUIER columna de la fila
+                if (!monto || monto === 0) {
+                    for (let cell of row) {
+                        const m = _parseValFlota(cell);
+                        if (m > 0) {
+                            monto = m;
+                            break;
+                        }
+                    }
+                }
+                
+                if (!unidad || unidad === '') continue;
 
-                // Filtrado por centro de costeo si aplica
-                const centro = String(row[idxCosteo] || '').trim();
-                if (filtro !== 'TODOS' && !centro.toUpperCase().includes(filtro.toUpperCase())) continue;
-
-                // Procesar Fecha
+                // Procesar Fecha (Si falla, usamos el mes activo)
                 let fecha = '';
                 const fRaw = row[idxFecha];
                 if (typeof fRaw === 'number') {
-                    // Serial de Excel
                     const d = new Date(Math.round((fRaw - 25569) * 86400000));
                     fecha = d.toISOString().split('T')[0];
                 } else if (fRaw) {
-                    fecha = String(fRaw).trim();
-                    if (fecha.includes('/')) {
-                        const p = fecha.split('/');
+                    const s = String(fRaw).trim();
+                    if (s.includes('/')) {
+                        const p = s.split('/');
                         if (p.length === 3) fecha = (p[2].length === 2 ? '20' + p[2] : p[2]) + '-' + p[1].padStart(2,'0') + '-' + p[0].padStart(2,'0');
+                    } else if (s.includes('-')) {
+                        fecha = s.split(' ')[0];
                     }
                 }
 
-                // Si no hay fecha, intentar deducir del mes de la hoja
-                const mesFila = fecha ? getMonthSafe(fecha) : currentMonth;
-                if (mesFila !== currentMonth) continue;
+                // Si la fecha es de otro mes/año o no existe, forzamos el mes activo
+                const mesFila = fecha ? parseInt(fecha.split('-')[1]) - 1 : currentMonth;
+                const anioFila = fecha ? parseInt(fecha.split('-')[0]) : currentYear;
+                
+                if (mesFila !== currentMonth || anioFila !== currentYear) {
+                    fecha = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`;
+                }
 
                 registros.push({
                     fecha:     fecha || (currentYear + '-' + String(currentMonth+1).padStart(2,'0') + '-01'),
                     unidad:    unidad,
                     tarea:     String(row[idxDesc] || 'Mantenimiento').trim(),
-                    costo:     monto,
+                    costo:     monto || 0,
                     nota:      String(row[idxNota] || '').trim(),
-                    costeo:    centro,
+                    costeo:    'RP-MOV.VM',
                     mesNum:    currentMonth + 1,
                     anio:      currentYear
                 });
@@ -307,6 +325,7 @@ window.procesarExcelFlotaPesada = function(fileArg) {
             }
 
             syncAndRefreshData();
+            if (typeof updateFlotaPesadaUI === 'function') updateFlotaPesadaUI();
             if (statusEl) { 
                 statusEl.style.background = 'rgba(34,197,94,0.15)'; 
                 statusEl.style.color = 'var(--success)';
