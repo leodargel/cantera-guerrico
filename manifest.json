@@ -1,0 +1,37 @@
+{
+  "name": "Control Operativo — Cantera Guerrico",
+  "short_name": "Guerrico",
+  "description": "Dashboard ejecutivo de control operativo para Cantera Guerrico",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0d0f0e",
+  "theme_color": "#d97706",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Operaciones",
+      "url": "./index.html#produccion",
+      "description": "Ir a Operaciones"
+    },
+    {
+      "name": "Voladuras",
+      "url": "./index.html#voladuras",
+      "description": "Ir a Voladuras"
+    }
+  ]
+}

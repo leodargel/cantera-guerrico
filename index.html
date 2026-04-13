@@ -1,0 +1,2645 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+
+    <script>
+    /* CRITICAL — Theme & Clock — inline fallback */
+    window.toggleTheme = function() {
+        var isLight = document.body.classList.contains('theme-light');
+        var next = isLight ? 'dark' : 'light';
+        localStorage.setItem('guerrico-theme', next);
+        window.applyTheme(next);
+    };
+    window.applyTheme = function(theme) {
+        var isLight = theme === 'light';
+        document.body.classList.toggle('theme-light', isLight);
+        var icon = document.getElementById('theme-toggle-icon');
+        if (icon) icon.className = isLight ? 'ph ph-moon' : 'ph ph-sun';
+        if (window.Chart) {
+            Chart.defaults.color = isLight ? 'rgba(44,32,12,0.65)' : 'rgba(200,210,200,0.7)';
+            Chart.defaults.borderColor = isLight ? 'rgba(120,80,20,0.1)' : 'rgba(128,128,128,0.12)';
+        }
+        setTimeout(function() {
+            ['updateBalanceChart','updateEficienciaChart','updateBlastCharts','updateCostsCharts','updateMaintChart'].forEach(function(fn) {
+                if (typeof window[fn] === 'function') window[fn]();
+            });
+        }, 60);
+    };
+    /* Apply saved theme immediately (before page renders = no flicker) */
+    (function() {
+        var saved = localStorage.getItem('guerrico-theme') || 'dark';
+        if (saved === 'light') document.documentElement.classList.add('theme-light-early');
+        window.addEventListener('DOMContentLoaded', function() {
+            window.applyTheme(saved);
+        });
+    })();
+    /* Real-time clock */
+    window.addEventListener('DOMContentLoaded', function() {
+        function tick() {
+            var now = new Date();
+            var h = String(now.getHours()).padStart(2,'0');
+            var m = String(now.getMinutes()).padStart(2,'0');
+            var s = String(now.getSeconds()).padStart(2,'0');
+            var reloj = document.getElementById('header-reloj-mini');
+            if (reloj) reloj.textContent = h + ':' + m + ':' + s;
+
+            var hora = now.getHours();
+            var esDia = hora >= 6 && hora < 15;
+            var iconEl  = document.getElementById('header-turno-icon');
+            var textoEl = document.getElementById('header-turno-texto');
+            var badge   = document.getElementById('header-turno-badge');
+            var restEl  = document.getElementById('header-turno-restante');
+
+            if (iconEl)  iconEl.textContent  = esDia ? '☀️' : '🌙';
+            if (textoEl) textoEl.textContent = esDia ? 'Turno Día' : 'Turno Noche';
+            if (badge) {
+                var isLight = document.body.classList.contains('theme-light');
+                badge.style.background = isLight
+                    ? (esDia ? 'rgba(180,83,9,0.12)' : 'rgba(99,102,241,0.12)')
+                    : (esDia ? 'rgba(251,191,36,0.15)' : 'rgba(99,102,241,0.15)');
+                badge.style.color = isLight
+                    ? (esDia ? '#92400e' : '#4338ca')
+                    : (esDia ? 'var(--warning)' : '#818cf8');
+            }
+
+            /* tiempo restante */
+            var fin = new Date(now);
+            if (esDia) { fin.setHours(15,0,0,0); }
+            else { if (hora >= 15) fin.setDate(fin.getDate()+1); fin.setHours(6,0,0,0); }
+            var mins = Math.max(0, Math.round((fin - now) / 60000));
+            var hRest = Math.floor(mins/60);
+            var mRest = mins % 60;
+            if (restEl) restEl.textContent = mins > 0 ? hRest+'h '+String(mRest).padStart(2,'0')+'m' : 'Cambio de turno';
+        }
+        tick();
+        setInterval(tick, 1000);
+    });
+    </script>
+    <meta charset="UTF-8">
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Guerrico">
+    <meta name="theme-color" content="#d97706">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control Operativo | Cantera Guerrico</title>
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Inter+Tight:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<style>
+/* ==========================================================
+   ESTILOS DE INTERFAZ CORPORATIVA — EXECUTIVE DASHBOARD
+   ========================================================== */
+:root {
+    /* ── Cantera Guerrico — Industrial Dark ── */
+    --bg-body:    #0d0f0e;
+    --bg-card:    #161a18;
+    --bg-card-2:  #1c211f;
+    --nav-bg:     #111412;
+    --card-bg:    #161a18;
+    --text-main:  #e8ede9;
+    --text-dim:   #5a6b60;
+    --accent:     #d97706;
+    --accent-2:   #f59e0b;
+    --accent-dark:#92400e;
+    --success:    #4ade80;
+    --warning:    #fb923c;
+    --danger:     #f87171;
+    --purple:     #a78bfa;
+    --color-prod: #4ade80;
+    --color-desp: #60a5fa;
+    --color-ratio:#fb923c;
+    --color-cost: #f87171;
+    --color-stock:#34d399;
+    --border:     rgba(217,119,6,0.15);
+    --card-shadow:0 4px 32px rgba(0,0,0,0.6), 0 1px 0 rgba(255,255,255,0.04);
+    --glow-blue:  0 0 24px rgba(217,119,6,0.12);
+}
+* { margin:0; padding:0; box-sizing:border-box; font-family:'Inter Tight','Rajdhani',system-ui,sans-serif; }
+::-webkit-scrollbar { width:8px; height:8px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:rgba(148,163,184,0.3); border-radius:4px; }
+body { background:var(--bg-body)!important; color:var(--text-main); display:flex; flex-direction:column; height:100vh; overflow:hidden; transition:background 0.3s ease; }
+
+/* TEMA CLARO */
+body.theme-light {
+    --bg-body:    #f5f0e8;
+    --bg-card:    #fdf9f3;
+    --bg-card-2:  #ede8de;
+    --nav-bg:     #e8e2d6;
+    --card-bg:    #fdf9f3;
+    --text-main:  #1c1508;
+    --text-dim:   #7a6a52;
+    --accent:     #b45309;
+    --accent-2:   #d97706;
+    --accent-dark:#78350f;
+    --success:    #15803d;
+    --warning:    #c2410c;
+    --danger:     #dc2626;
+    --purple:     #7c3aed;
+    --color-prod: #15803d;
+    --color-desp: #1d4ed8;
+    --color-ratio:#c2410c;
+    --color-cost: #dc2626;
+    --color-stock:#0f766e;
+    --border:     rgba(180,83,9,0.15);
+    --card-shadow:0 2px 12px rgba(0,0,0,0.08), 0 1px 0 rgba(0,0,0,0.04);
+    --glow-blue:  0 0 16px rgba(180,83,9,0.08);
+}
+/* Overrides moved to light theme block below */
+body.theme-light .nav-link.active {
+    background: linear-gradient(135deg, #92400e, #b45309);
+    border-color: rgba(180,83,9,0.35);
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(180,83,9,0.2);
+}
+body:not(.theme-light) .nav-link.active {
+    background: linear-gradient(135deg, #78350f, #b45309);
+    border-color: rgba(180,83,9,0.4);
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(180,83,9,0.25);
+}
+
+/* NAVBAR */
+.top-navbar {
+    width:100%;
+    background: var(--nav-bg);
+    background-image: linear-gradient(180deg, rgba(59,130,246,0.05) 0%, transparent 100%);
+    border-bottom: 1px solid var(--border);
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0.8rem 2rem; z-index:1000; flex-shrink:0;
+    backdrop-filter: blur(10px);
+}
+.logo-wrapper { display:flex; align-items:center; gap:15px; }
+.logo-title { font-weight:800; font-size:1.4rem; color:var(--accent-dark); letter-spacing:0.5px; line-height:1.2; }
+body:not(.theme-light) .logo-title { color:var(--text-main); }
+.logo-title span { font-weight:400; color:var(--text-main); }
+.logo-wrapper small { color:var(--text-dim); font-size:0.75rem; font-weight:600; letter-spacing:0.5px; margin-left:10px; }
+.top-controls { display:flex; align-items:center; gap:15px; }
+.status-pill { background:rgba(59,130,246,0.08); color:var(--accent-2,#60a5fa); padding:6px 14px; border-radius:20px; font-size:0.75rem; font-weight:700; border:1px solid rgba(59,130,246,0.18); display:flex; align-items:center; gap:5px; cursor:pointer; transition:0.2s; backdrop-filter:blur(4px); }
+.status-pill:hover { background:rgba(59,130,246,0.2); }
+body.theme-light .status-pill { background:#fef3c7; color:#92400e; border-color:#fcd34d; }
+.time-machine input { padding:6px 12px; background:rgba(0,0,0,0.2); border:1px solid var(--border); color:var(--text-main); border-radius:6px; outline:none; font-weight:600; cursor:pointer; font-size:0.8rem; }
+#theme-toggle { 
+    padding:6px 10px; 
+    background:rgba(255,255,255,0.08); 
+    border:1px solid rgba(255,255,255,0.15); 
+    color:var(--text-main); 
+    border-radius:8px; 
+    cursor:pointer; 
+    display:flex; 
+    align-items:center; 
+    gap:6px; 
+    transition:all 0.2s; 
+    font-weight:600; 
+    font-size:0.82rem;
+    min-width:38px;
+    justify-content:center;
+}
+#theme-toggle:hover { 
+    background:rgba(255,255,255,0.15); 
+    border-color:rgba(255,255,255,0.25);
+    transform:scale(1.05);
+}
+#theme-toggle:hover { background:rgba(128,128,128,0.1); color:var(--text-main); }
+
+/* MENÚ */
+.nav-menu { display:flex; gap:10px; padding:12px 2rem; background:var(--bg-body); border-bottom:1px solid var(--border); overflow-x:auto; flex-shrink:0; }
+.nav-link { display:flex; align-items:center; gap:6px; padding:7px 12px; border-radius:8px; white-space:nowrap; color:var(--text-dim); background:rgba(255,255,255,0.03); border:1px solid var(--border); text-decoration:none; transition:0.2s; font-weight:600; font-size:0.85rem; cursor:pointer; box-shadow:var(--card-shadow); white-space:nowrap; }
+.nav-link:hover { border-color:var(--text-dim); color:var(--text-main); }
+
+/* LAYOUT */
+.main-content { flex:1; padding:2rem; overflow-y:auto; background:none; padding-bottom:4rem; }
+.view { display:none; }
+.view.active { display:block; }
+.grid-kpi { display:grid; grid-template-columns:repeat(5,1fr)!important; gap:1.2rem; margin-bottom:2rem; }
+.grid-main { display:grid; grid-template-columns:1.5fr 1fr; gap:1.5rem; margin-bottom:1.5rem; }
+.header { display:none; }
+
+/* TARJETAS */
+.kpi-card, .chart-card { background:var(--bg-card); border:1px solid var(--border); border-radius:10px; box-shadow:var(--card-shadow); padding:1.5rem; position:relative; overflow:hidden; transition:transform 0.2s ease, box-shadow 0.2s ease; }
+.kpi-card:hover { transform:translateY(-2px); box-shadow:0 10px 15px -3px rgba(0,0,0,0.1); }
+.grid-kpi .kpi-card { overflow:visible!important; }
+.kpi-tooltip { position:absolute; top:-35px; left:50%; transform:translateX(-50%) scale(0.8); background:var(--text-main); color:var(--bg-body); padding:6px 12px; border-radius:6px; font-size:0.75rem; white-space:nowrap; opacity:0; visibility:hidden; transition:0.3s; font-weight:800; pointer-events:none; z-index:100; box-shadow:var(--card-shadow); }
+.kpi-card:hover .kpi-tooltip { opacity:1; visibility:visible; transform:translateX(-50%) scale(1); }
+.kpi-info h4 { font-size:0.75rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px; font-weight:700; }
+.kpi-info span { font-size:2.2rem; font-weight:800; color:var(--text-main); }
+.kpi-smart-data { display:flex; flex-direction:column; gap:8px; margin-top:15px; }
+.smart-subtext { font-size:0.8rem; color:var(--text-dim); font-weight:600; background:rgba(0,0,0,0.25); padding:8px 10px; border-radius:6px; border:1px solid var(--border); }
+body.theme-light .smart-subtext { background:#f8fafc; }
+.smart-subtext b { color:var(--text-main); font-weight:800; }
+.trend-badge { display:inline-flex; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:700; margin-top:10px; }
+.trend-up { color:var(--success); }
+.trend-down { color:var(--danger); }
+.trend-neutral { color:var(--text-dim); }
+.chart-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; border-bottom:1px solid var(--border); padding-bottom:10px; font-size:0.95rem; font-weight:700; color:var(--text-main); }
+.chart-card { display:flex; flex-direction:column; }
+.chart-card canvas { max-height:260px; width:100%; display:block; }
+
+/* COLORES TARJETAS */
+#resumen .grid-kpi .kpi-card:nth-child(1) { border-top:3px solid var(--color-prod)!important; background:linear-gradient(145deg,rgba(52,211,153,0.06) 0%,transparent 100%)!important; }
+#resumen .grid-kpi .kpi-card:nth-child(2) { border-top:3px solid var(--color-stock)!important; background:linear-gradient(145deg,rgba(167,139,250,0.06) 0%,transparent 100%)!important; }
+#resumen .grid-kpi .kpi-card:nth-child(3) { border-top:3px solid var(--accent)!important; background:linear-gradient(145deg,rgba(59,130,246,0.06) 0%,transparent 100%)!important; }
+#resumen .grid-kpi .kpi-card:nth-child(4) { border-top:3px solid var(--color-ratio)!important; background:linear-gradient(145deg,rgba(251,191,36,0.06) 0%,transparent 100%)!important; }
+#resumen .grid-kpi .kpi-card:nth-child(5) { border-top:3px solid var(--color-cost)!important; background:linear-gradient(145deg,rgba(248,113,113,0.06) 0%,transparent 100%)!important; }
+.card-green { border-top:3px solid var(--color-prod)!important; background:linear-gradient(145deg,rgba(16,185,129,0.05) 0%,transparent 100%)!important; }
+.card-purple { border-top:3px solid var(--color-stock)!important; background:linear-gradient(145deg,rgba(139,92,246,0.05) 0%,transparent 100%)!important; }
+.card-blue { border-top:3px solid var(--accent)!important; background:linear-gradient(145deg,rgba(59,130,246,0.05) 0%,transparent 100%)!important; }
+.card-yellow { border-top:3px solid var(--color-ratio)!important; background:linear-gradient(145deg,rgba(245,158,11,0.05) 0%,transparent 100%)!important; }
+.card-red { border-top:3px solid var(--color-cost)!important; background:linear-gradient(145deg,rgba(239,68,68,0.05) 0%,transparent 100%)!important; }
+.card-cyan { border-top:3px solid var(--accent-2,#60a5fa)!important; background:linear-gradient(145deg,rgba(6,182,212,0.05) 0%,transparent 100%)!important; }
+
+/* FORMULARIOS */
+h1,h2,h3,h4,.chart-header span,.kpi-info span,.ranking-table td strong { color:var(--text-main)!important; font-weight:700; }
+button { background:var(--accent-dark); color:#ffffff; border:none; border-radius:6px; padding:10px 15px; font-weight:600; cursor:pointer; transition:0.2s; font-size:0.8rem; }
+body:not(.theme-light) button:not(#theme-toggle):not(#pwa-install-btn) { background:var(--accent); }
+button:hover { filter:brightness(1.1); }
+input,select,textarea { background:rgba(0,0,0,0.1)!important; color:var(--text-main)!important; border:1px solid var(--border)!important; border-radius:6px; padding:10px; outline:none; transition:0.2s; font-size:0.85rem; width:100%; margin-bottom:8px; }
+input:focus,select:focus,textarea:focus { border-color:var(--accent)!important; }
+
+/* RANKING TABLE */
+.ranking-table { width:100%; border-collapse:collapse; }
+.ranking-table th { color:var(--text-dim)!important; font-size:0.75rem; padding:10px 12px; border-bottom:2px solid var(--border); text-align:left; }
+.ranking-table td { color:var(--text-main); border-bottom:1px solid var(--border); padding:12px; font-size:0.85rem; }
+
+/* GAUGE */
+.gauge-bg { stroke:rgba(59,130,246,0.08); stroke-width:10; }
+.gauge-bar { stroke-width:10; stroke-linecap:round; transition:stroke-dashoffset 0.8s ease,stroke 0.3s; filter:drop-shadow(0 0 4px currentColor); }
+.gauge-needle { width:4px; height:40px; background:var(--text-main); position:absolute; bottom:40px; left:calc(50% - 2px); transform-origin:bottom center; transition:transform 0.8s ease; border-radius:2px; }
+.gauge-center { width:14px; height:14px; background:var(--text-main); border-radius:50%; position:absolute; bottom:33px; left:calc(50% - 7px); z-index:2; }
+.gauge-value-text { position:absolute; width:100%; text-align:center; bottom:-5px; font-size:1.8rem; font-weight:800; color:var(--text-main); }
+
+/* MAPA */
+#quarry-map-container { height:400px; border-radius:8px; z-index:1; border:1px solid var(--border); }
+.mapa-minero-filtro { filter:grayscale(40%) contrast(1.15) brightness(0.75); }
+.contenedor-maquina { flex:2; min-width:400px; position:relative; }
+.contenedor-maquina img { width:100%; max-width:800px; background:#ffffff; padding:15px; border-radius:8px; border:1px solid var(--border); }
+
+/* ANIMACIONES */
+@keyframes fadeIn { 0%{opacity:0;transform:translateY(8px)} 100%{opacity:1;transform:translateY(0)} }
+.view.active .kpi-card { opacity:0; animation:fadeIn 0.4s ease forwards; }
+.view.active .kpi-card:nth-child(1){animation-delay:0.05s}
+.view.active .kpi-card:nth-child(2){animation-delay:0.1s}
+.view.active .kpi-card:nth-child(3){animation-delay:0.15s}
+.view.active .kpi-card:nth-child(4){animation-delay:0.2s}
+.view.active .kpi-card:nth-child(5){animation-delay:0.25s}
+
+/* LEAFLET MARKERS INTELIGENTES */
+.marcador-voladura { width:18px!important; height:18px!important; border-radius:50%; border:3px solid #fff!important; cursor:grab!important; box-shadow:0 0 0 0 rgba(239,68,68,0.4); animation:pulse-marker 2s infinite; }
+.marcador-voladura:active { cursor:grabbing!important; }
+@keyframes pulse-marker { 0%{box-shadow:0 0 0 0 rgba(239,68,68,0.4)} 70%{box-shadow:0 0 0 10px rgba(239,68,68,0)} 100%{box-shadow:0 0 0 0 rgba(239,68,68,0)} }
+.marcador-zona { width:14px!important; height:14px!important; border-radius:50%; border:2px solid #fff!important; cursor:grab!important; }
+
+/* SMART SUMMARY */
+.smart-summary-container { padding:1.2rem; margin-bottom:2rem; border-left:3px solid var(--accent); border-radius:10px; background:rgba(59,130,246,0.04); }
+
+/* BADGE SECTOR */
+.badge-sector { background:rgba(59,130,246,0.1); color:#3b82f6; padding:4px 8px; border-radius:4px; font-size:0.8rem; font-weight:bold; border:1px solid rgba(180,83,9,0.25); }
+
+/* MÓDULO AUTOMATIZACIÓN */
+#modulo-automatizacion-card { display:none; border-left:4px solid var(--warning); margin-bottom:2rem; }
+
+/* DRAG & DROP ZONE */
+.upload-zone { border:2px dashed var(--accent); border-radius:8px; padding:20px; text-align:center; cursor:pointer; transition:0.3s; background:rgba(234,88,12,0.05); }
+.upload-zone:hover, .upload-zone.dragover { background:rgba(234,88,12,0.15); border-color:var(--accent); }
+#upload-zone-pesada { border-color:var(--warning); }
+#upload-zone-pesada:hover, #upload-zone-pesada.dragover { background:rgba(245,158,11,0.15); border-color:var(--warning); }
+.upload-zone input[type=file] { display:none; }
+
+@media (max-width:1024px) {
+    .top-navbar { flex-wrap:wrap; gap:15px; justify-content:center; }
+    .nav-menu { padding:10px 1rem; }
+    .top-controls { width:100%; justify-content:space-between; }
+    .grid-kpi, .grid-main { grid-template-columns:1fr!important; }
+    .main-content { padding:1rem; }
+    .contenedor-maquina { min-width:100%; }
+}
+
+/* Marcadores de Voladura */
+.blast-marker-container { display:flex; align-items:center; justify-content:center; width:28px; height:28px; }
+.blast-marker { background:#ef4444; color:white; border-radius:50%; width:20px; height:20px; display:flex; align-items:center; justify-content:center; box-shadow:0 0 12px rgba(239,68,68,0.9); position:relative; border:2px solid rgba(255,255,255,0.9); z-index:2; }
+.blast-marker i { font-size:10px; }
+.blast-pulse { position:absolute; width:20px; height:20px; background:rgba(239,68,68,0.45); border-radius:50%; animation:blastPulseAnim 1.8s ease-out infinite; z-index:1; }
+@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+@keyframes blastPulseAnim { 0%{transform:scale(1);opacity:0.8} 100%{transform:scale(3);opacity:0} }
+
+/* Marcadores de Zona */
+.zona-marker-container { display:flex; align-items:center; justify-content:center; width:22px; height:22px; }
+.zona-marker { border-radius:50%; width:16px; height:16px; border:2.5px solid #fff; box-shadow:0 0 8px rgba(0,0,0,0.5); z-index:2; cursor:grab; transition:transform 0.15s; }
+.zona-marker:hover { transform:scale(1.3); }
+.zona-pulse { position:absolute; width:16px; height:16px; border-radius:50%; animation:blastPulseAnim 2.2s ease-out infinite; z-index:1; }
+
+
+/* ── MAPA MINERO — Overlay oscuro+popups custom ── */
+#quarry-map-container { position: relative; }
+
+/* Overlay: vignette elegante tipo mapa de relieve */
+#quarry-map-container::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: 12px;
+    box-shadow: inset 0 0 80px rgba(8,13,26,0.6), inset 0 0 20px rgba(8,13,26,0.3);
+    z-index: 400;
+}
+body.theme-light #quarry-map-container::after {
+    box-shadow: inset 0 0 40px rgba(0,0,0,0.2);
+}
+
+/* Leaflet popup — card dark industrial */
+.leaflet-popup-content-wrapper {
+    background: #0f172a !important;
+    border: 1px solid rgba(239,68,68,0.35) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.05) !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+}
+.leaflet-popup-content {
+    margin: 0 !important;
+    width: auto !important;
+}
+.leaflet-popup-tip-container { display: none !important; }
+.leaflet-popup-close-button {
+    color: rgba(255,255,255,0.5) !important;
+    font-size: 18px !important;
+    top: 8px !important;
+    right: 10px !important;
+    z-index: 10;
+    font-weight: 300 !important;
+    transition: color 0.2s;
+}
+.leaflet-popup-close-button:hover { color: #fff !important; }
+
+/* Popup de VOLADURA */
+.popup-blast-card { font-family: 'Outfit', sans-serif; min-width: 220px; }
+.popup-blast-header {
+    background: linear-gradient(135deg, #991b1b 0%, #ef4444 100%);
+    padding: 12px 16px 10px;
+    position: relative;
+}
+.popup-blast-header .badge-num {
+    display: inline-block;
+    background: rgba(255,255,255,0.2);
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 800;
+    padding: 2px 7px;
+    border-radius: 10px;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+.popup-blast-header h4 {
+    color: #fff !important;
+    font-size: 1rem !important;
+    font-weight: 800 !important;
+    margin: 0 !important;
+    line-height: 1.2;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+}
+.popup-blast-body { padding: 14px 16px; }
+.popup-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    font-size: 0.82rem;
+}
+.popup-row:last-child { border-bottom: none; }
+.popup-row .lbl {
+    color: #64748b;
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+.popup-row .val {
+    color: #f8fafc;
+    font-weight: 700;
+    text-align: right;
+}
+.popup-row .val.highlight { color: #ef4444; font-size: 0.9rem; }
+.popup-row .val.green { color: #10b981; }
+.popup-divider { border: 0; border-top: 1px solid rgba(255,255,255,0.08); margin: 6px 0; }
+.popup-acumulado {
+    background: rgba(239,68,68,0.08);
+    border-radius: 6px;
+    padding: 7px 10px;
+    margin: 8px 0 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid rgba(239,68,68,0.2);
+}
+.popup-acumulado .lbl { color: #94a3b8; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; }
+.popup-acumulado .val { color: #f8fafc; font-size: 0.95rem; font-weight: 800; }
+.popup-btn-delete {
+    width: 100%;
+    background: rgba(239,68,68,0.15) !important;
+    color: #ef4444 !important;
+    border: 1px solid rgba(239,68,68,0.3) !important;
+    border-radius: 6px !important;
+    padding: 8px !important;
+    cursor: pointer !important;
+    font-size: 0.8rem !important;
+    font-weight: 700 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    transition: all 0.2s !important;
+    font-family: 'Outfit', sans-serif !important;
+}
+.popup-btn-delete:hover {
+    background: rgba(239,68,68,0.9) !important;
+    color: #fff !important;
+    border-color: #ef4444 !important;
+    box-shadow: 0 0 15px rgba(239,68,68,0.4) !important;
+}
+
+/* Popup de ZONA */
+.popup-zona-card { font-family: 'Outfit', sans-serif; min-width: 200px; }
+.popup-zona-header { padding: 12px 16px 10px; position: relative; }
+.popup-zona-header h4 { color: #fff !important; font-size: 0.95rem !important; font-weight: 800 !important; margin: 0 !important; display: flex; align-items: center; gap: 8px; }
+.popup-zona-body { padding: 10px 16px 14px; }
+.popup-zona-coords { background: rgba(255,255,255,0.05); border-radius: 6px; padding: 7px 10px; margin-bottom: 10px; font-size: 0.75rem; color: #64748b; font-family: monospace; }
+.popup-zona-coords span { color: #94a3b8; }
+.popup-zona-actions { display: flex; gap: 8px; }
+.popup-btn-rename, .popup-btn-delete-zone {
+    flex: 1; border: none !important; border-radius: 6px !important; padding: 8px !important;
+    cursor: pointer !important; font-size: 0.78rem !important; font-weight: 700 !important;
+    display: flex !important; align-items: center !important; justify-content: center !important;
+    gap: 5px !important; transition: all 0.2s !important; font-family: 'Outfit', sans-serif !important;
+}
+.popup-btn-rename { background: rgba(59,130,246,0.15) !important; color: #3b82f6 !important; border: 1px solid rgba(180,83,9,0.25) !important; }
+.popup-btn-rename:hover { background: #3b82f6 !important; color: #fff !important; }
+.popup-btn-delete-zone { background: rgba(239,68,68,0.12) !important; color: #ef4444 !important; border: 1px solid rgba(239,68,68,0.25) !important; }
+.popup-btn-delete-zone:hover { background: #ef4444 !important; color: #fff !important; }
+
+/* Controles del mapa */
+.leaflet-control-zoom { border: 1px solid rgba(255,255,255,0.1) !important; border-radius: 8px !important; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.4) !important; }
+.leaflet-control-zoom a {
+    background: #1e293b !important;
+    color: #94a3b8 !important;
+    border-bottom: 1px solid rgba(255,255,255,0.08) !important;
+    width: 30px !important; height: 30px !important; line-height: 30px !important;
+    font-size: 1rem !important;
+    transition: all 0.2s;
+}
+.leaflet-control-zoom a:hover { background: #334155 !important; color: #fff !important; }
+.leaflet-control-attribution {
+    background: rgba(15,23,42,0.75) !important;
+    color: rgba(255,255,255,0.35) !important;
+    font-size: 9px !important;
+    border-radius: 4px 0 0 0 !important;
+}
+.leaflet-control-attribution a { color: rgba(255,255,255,0.4) !important; }
+
+/* HUD Stats en el mapa */
+.map-hud {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    z-index: 500;
+    display: flex;
+    gap: 8px;
+    pointer-events: none;
+}
+.map-hud-pill {
+    background: rgba(15,23,42,0.85);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 20px;
+    padding: 5px 12px;
+    font-size: 0.72rem;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    color: #f8fafc;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.map-hud-pill i { font-size: 0.85rem; }
+.map-hud-pill .dot { width: 7px; height: 7px; border-radius: 50%; animation: blastPulseAnim 1.8s ease-out infinite; }
+
+
+/* Expedientes Flota Pesada */
+.exp-pesada-card { background:var(--bg-card); border:1px solid var(--border); border-radius:10px; overflow:hidden; transition:transform 0.2s; }
+.exp-pesada-card:hover { transform:translateY(-2px); }
+.exp-pesada-header { padding:12px 16px; display:flex; justify-content:space-between; align-items:flex-start; }
+.exp-pesada-header h4 { color:#fff !important; font-size:0.9rem !important; font-weight:800 !important; margin:0 !important; line-height:1.3; }
+.exp-pesada-header .total-usd { color:#fff; font-size:1.3rem; font-weight:800; white-space:nowrap; }
+.exp-pesada-items { padding:0 14px 12px; }
+.exp-pesada-item { padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.06); font-size:0.78rem; display:flex; gap:8px; align-items:flex-start; }
+.exp-pesada-item:last-child { border-bottom:none; }
+.exp-pesada-item .fecha { color:#64748b; flex-shrink:0; width:72px; font-size:0.72rem; }
+.exp-pesada-item .desc { color:#cbd5e1; flex:1; line-height:1.4; }
+.exp-pesada-item .valor { color:#f59e0b; font-weight:700; white-space:nowrap; flex-shrink:0; }
+.exp-pesada-more { font-size:0.72rem; color:#64748b; padding:6px 0; text-align:center; font-style:italic; }
+
+
+/* ════ MEJORAS VISUALES v12 ════ */
+
+/* Scrollbar más sutil */
+::-webkit-scrollbar { width:5px; height:5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background:rgba(180,83,9,0.2); border-radius:3px; }
+::-webkit-scrollbar-thumb:hover { background:rgba(59,130,246,0.45); }
+
+/* Nav-menu scrollbar oculto */
+.nav-menu::-webkit-scrollbar { display:none; }
+.nav-menu { -ms-overflow-style:none; scrollbar-width:none; }
+
+/* Números grandes — fuente más impactante */
+.kpi-info span { font-variant-numeric:tabular-nums; }
+
+/* Formularios — input mejorado */
+input, select, textarea {
+    transition:border-color 0.2s, box-shadow 0.2s !important;
+}
+input:focus, select:focus, textarea:focus {
+    box-shadow:0 0 0 3px rgba(59,130,246,0.2) !important;
+    border-color: rgba(180,83,9,0.4) !important;
+}
+body.theme-light input:focus, body.theme-light select:focus {
+    box-shadow:0 0 0 3px rgba(180,83,9,0.12) !important;
+}
+
+/* Botones — feedback visual */
+button { transition:filter 0.15s, transform 0.1s, box-shadow 0.15s !important; }
+button:active { transform:scale(0.97) !important; }
+
+/* Tabla ranking — hover row */
+.ranking-table tbody tr { transition:background 0.15s; }
+.ranking-table tbody tr:hover { background:rgba(255,255,255,0.03); }
+body.theme-light .ranking-table tbody tr:hover { background:rgba(0,0,0,0.02); }
+
+/* Chart cards — consistent height */
+.chart-card canvas { flex:1; min-height:180px; }
+
+/* Smart summary container — mejora */
+.smart-summary-container {
+    border-left-width:3px !important;
+    font-size:0.9rem;
+    line-height:1.6;
+}
+
+/* KPI tooltip — mejora */
+.kpi-tooltip { font-size:0.72rem !important; letter-spacing:0.3px; }
+
+/* Badge sector */
+.badge-sector {
+    font-size:0.72rem !important;
+    padding:3px 8px !important;
+    border-radius:4px !important;
+}
+
+/* Upload zone — estado hover más claro */
+.upload-zone {
+    min-height:80px;
+    display:flex !important;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+}
+
+/* Expedientes pesada — sombra en hover */
+.exp-pesada-card:hover { box-shadow:0 8px 24px rgba(0,0,0,0.25); }
+.exp-pesada-item .desc { word-break:break-word; }
+
+/* Nav link activo — indicador visual extra */
+.nav-link.active { position:relative; }
+/* nav-link::after removed — caused z-index issues */
+
+/* Fechas en expedientes — monospace */
+.exp-pesada-item .fecha { font-family:monospace; }
+
+/* Estado vacío — estilo común */
+.empty-state {
+    text-align:center;
+    padding:40px 20px;
+    color:var(--text-dim);
+}
+.empty-state i { font-size:2.5rem; display:block; margin-bottom:12px; opacity:0.4; }
+.empty-state p { font-size:0.85rem; max-width:300px; margin:0 auto; }
+
+/* Tabla flota pesada — descripción de tareas */
+.tarea-badge {
+    display:inline-block;
+    background:rgba(255,255,255,0.06);
+    color:var(--text-dim);
+    font-size:0.68rem;
+    padding:2px 7px;
+    border-radius:10px;
+    margin:2px 2px 0 0;
+    max-width:200px;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+    vertical-align:middle;
+}
+body.theme-light .tarea-badge { background:rgba(0,0,0,0.06); }
+
+/* Popup Leaflet mejorado en modo claro */
+body.theme-light .leaflet-popup-content-wrapper {
+    background:#ffffff !important;
+    border-color:rgba(239,68,68,0.2) !important;
+}
+body.theme-light .popup-blast-body .popup-row .val { color:#1e293b; }
+body.theme-light .popup-blast-body .popup-row .lbl { color:#64748b; }
+body.theme-light .exp-pesada-item .desc { color:#475569; }
+body.theme-light .exp-pesada-item .fecha { color:#94a3b8; }
+
+/* Indicador de sincronización animado */
+@keyframes syncPulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+.syncing { animation:syncPulse 1s ease infinite; }
+
+/* Grid principal más flexible */
+.grid-main { gap:1.5rem !important; }
+
+/* Responsive mejoras */
+@media (max-width:768px) {
+    .nav-link { padding:6px 10px !important; font-size:0.78rem !important; }
+    .kpi-info span { font-size:1.8rem !important; }
+    .top-navbar { padding:0.6rem 1rem !important; }
+    .main-content { padding:1rem !important; }
+}
+
+
+.turno-badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:0.72rem; font-weight:700; letter-spacing:0.3px; }
+.turno-00 { background:rgba(167,139,250,0.15); color:#a78bfa; border:1px solid rgba(167,139,250,0.3); }
+.turno-08 { background:rgba(251,191,36,0.15); color:#fbbf24; border:1px solid rgba(251,191,36,0.3); }
+.turno-23 { background:rgba(96,165,250,0.15); color:#60a5fa; border:1px solid rgba(96,165,250,0.3); }
+.turno-especial { background:rgba(148,163,184,0.1); color:#5d7490; border:1px solid rgba(148,163,184,0.2); }
+.hs-chip { display:inline-block; background:rgba(52,211,153,0.1); color:#34d399; border:1px solid rgba(52,211,153,0.2); padding:1px 6px; border-radius:8px; font-size:0.68rem; font-weight:700; margin:1px; white-space:nowrap; }
+.hs-chip.zero { background:rgba(93,116,144,0.1); color:#5d7490; border-color:rgba(93,116,144,0.2); }
+.op-sel { background:rgba(0,0,0,0.15) !important; color:var(--text-main) !important; border:1px solid var(--border) !important; border-radius:6px; padding:5px 8px; font-size:0.78rem; width:100%; margin-bottom:0; }
+.crusher-hud { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; padding:12px; background:rgba(59,130,246,0.04); border:1px solid rgba(59,130,246,0.1); border-radius:8px; }
+.crusher-item { background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:8px 14px; min-width:90px; text-align:center; }
+.crusher-item .cn { font-size:0.68rem; color:var(--text-dim); font-weight:700; text-transform:uppercase; }
+.crusher-item .ch { font-size:1.3rem; font-weight:800; }
+.crusher-item .cs { font-size:0.65rem; color:var(--text-dim); }
+
+
+/* ═══════════════════════════════════════════
+   MODO CLARO — Diseño limpio industrial
+   ═══════════════════════════════════════════ */
+
+/* Variables ya definidas arriba en body.theme-light { } */
+
+/* Nav */
+body.theme-light .top-navbar {
+    background: linear-gradient(180deg, #e8e2d6 0%, #ddd6c8 100%);
+    border-bottom: 1px solid rgba(120,80,20,0.15);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+body.theme-light .nav-menu {
+    background: #e0d9ce;
+    border-bottom: 1px solid rgba(120,80,20,0.12);
+}
+body.theme-light .nav-link {
+    background: rgba(255,255,255,0.45);
+    border-color: rgba(120,80,20,0.12);
+    color: #44301a;
+}
+body.theme-light .nav-link:hover {
+    background: rgba(255,255,255,0.85);
+    color: #7c3500;
+    border-color: rgba(180,83,9,0.3);
+}
+body.theme-light .logo-title { color: #1c1508; }
+body.theme-light .logo-title span { color: #b45309; }
+
+/* Cards */
+body.theme-light .kpi-card,
+body.theme-light .chart-card {
+    background: #fdf8f1;
+    border: 1px solid rgba(120,80,20,0.12);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+}
+body.theme-light .kpi-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+
+/* Main background */
+body.theme-light,
+body.theme-light .main-content { background: #f5efe3 !important; }
+
+/* Text */
+body.theme-light .chart-header { border-bottom-color: rgba(120,80,20,0.1); }
+body.theme-light .chart-header span,
+body.theme-light h1, body.theme-light h2,
+body.theme-light h3, body.theme-light h4 { color: #1c1508 !important; }
+body.theme-light .kpi-info span { color: #1c1508; }
+body.theme-light .kpi-label, body.theme-light .smart-subtext,
+body.theme-light small { color: #6b5234 !important; }
+body.theme-light .section-header { color: #1c1508; border-bottom-color: rgba(120,80,20,0.1); }
+
+/* Forms */
+body.theme-light input,
+body.theme-light select,
+body.theme-light textarea {
+    background: #fff !important;
+    border-color: rgba(120,80,20,0.2) !important;
+    color: #1c1508 !important;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+}
+body.theme-light input::placeholder,
+body.theme-light textarea::placeholder { color: #a08060 !important; }
+body.theme-light input:focus,
+body.theme-light select:focus,
+body.theme-light textarea:focus {
+    border-color: #b45309 !important;
+    box-shadow: 0 0 0 3px rgba(180,83,9,0.12) !important;
+    outline: none;
+}
+body.theme-light select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23b45309' d='M6 8L1 3h10z'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 10px center !important;
+    background-size: 12px !important;
+}
+body.theme-light select option { background: #fff !important; color: #1c1508 !important; }
+
+/* Buttons */
+body.theme-light button {
+    background: linear-gradient(135deg, #92400e, #b45309) !important;
+    color: #fff !important;
+    border-color: transparent !important;
+    box-shadow: 0 2px 6px rgba(180,83,9,0.2);
+}
+body.theme-light button:hover { box-shadow: 0 4px 12px rgba(180,83,9,0.32) !important; }
+body.theme-light #theme-toggle {
+    background: rgba(30,58,95,0.12) !important;
+    border: 1px solid rgba(30,58,95,0.25) !important;
+    color: #1e3a5f !important;
+}
+body.theme-light #theme-toggle:hover {
+    background: rgba(30,58,95,0.2) !important;
+}
+body.theme-light button[style*="rgba(34,197"] { /* backup/success */
+    background: rgba(21,128,61,0.12) !important;
+    color: #15803d !important;
+    box-shadow: none !important;
+}
+body.theme-light button[style*="rgba(59,130"] { /* restore/blue */
+    background: rgba(29,78,216,0.1) !important;
+    color: #1d4ed8 !important;
+    box-shadow: none !important;
+}
+body.theme-light button[style*="rgba(248,113"] { /* danger */
+    background: rgba(220,38,38,0.08) !important;
+    color: #dc2626 !important;
+    box-shadow: none !important;
+}
+body.theme-light label[style*="rgba(59,130"] { /* restore label */
+    background: rgba(29,78,216,0.1) !important;
+    color: #1d4ed8 !important;
+}
+
+/* Status pill */
+body.theme-light .status-pill {
+    background: #fef3c7;
+    color: #92400e;
+    border-color: rgba(180,83,9,0.25);
+}
+body.theme-light .status-pill:hover { background: #fde68a; }
+
+/* Tables */
+body.theme-light .ranking-table th {
+    background: rgba(120,80,20,0.06);
+    color: #4a3520;
+    border-bottom: 1px solid rgba(120,80,20,0.1);
+}
+body.theme-light .ranking-table td {
+    border-bottom: 1px solid rgba(120,80,20,0.06);
+    color: #1c1508;
+}
+body.theme-light .ranking-table tbody tr:hover { background: rgba(180,83,9,0.04); }
+
+/* Smart summary */
+body.theme-light .smart-summary-container {
+    background: rgba(180,83,9,0.04);
+    border-color: rgba(180,83,9,0.15);
+}
+
+/* Upload zone */
+body.theme-light .upload-zone {
+    background: rgba(180,83,9,0.03) !important;
+    border-color: rgba(180,83,9,0.2) !important;
+}
+body.theme-light .upload-zone:hover { background: rgba(180,83,9,0.06) !important; }
+
+/* Time machine */
+body.theme-light .time-machine input {
+    background: #fff;
+    border-color: rgba(120,80,20,0.2);
+    color: #1c1508;
+}
+
+/* Header turno badge light */
+body.theme-light #header-turno-badge {
+    background: rgba(180,83,9,0.12);
+    color: #92400e;
+}
+/* Chatbot FAB */
+body.theme-light #chatbot-fab { box-shadow: 0 4px 20px rgba(124,58,237,0.35); }
+
+/* Misc */
+body.theme-light .gauge-bg { stroke: rgba(120,80,20,0.08); }
+body.theme-light .crusher-item { background: #f0e8da; border-color: rgba(120,80,20,0.12); }
+body.theme-light .hs-chip { background: rgba(21,128,61,0.1); color: #15803d; border-color: rgba(21,128,61,0.2); }
+body.theme-light .op-sel { background: #fff !important; color: #1c1508 !important; border-color: rgba(120,80,20,0.15) !important; }
+body.theme-light .peso-kpi-card { background: #fdf8f1; border-color: rgba(120,80,20,0.12); }
+body.theme-light .chart-header[onclick]:hover { background: rgba(180,83,9,0.06); }
+body.theme-light .tarea-badge { background: rgba(0,0,0,0.06); }
+
+/* Chart colors in light mode (handled by Chart.js defaults override in charts.js) */
+
+/* Pesómetros */
+.peso-kpi-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.2rem;
+    position: relative;
+    overflow: hidden;
+}
+.peso-kpi-card .pnombre { font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.4px; color:var(--text-dim); margin-bottom:6px; }
+.peso-kpi-card .pval    { font-size:1.8rem; font-weight:800; }
+.peso-kpi-card .psub    { font-size:0.75rem; color:var(--text-dim); margin-top:4px; }
+.peso-kpi-card .pbarra  { height:4px; border-radius:2px; background:rgba(128,128,128,0.15); margin-top:10px; overflow:hidden; }
+.peso-kpi-card .pbarra-fill { height:100%; border-radius:2px; transition:width 0.8s ease; }
+.peso-kpi-card .palerta { font-size:0.7rem; font-weight:700; margin-top:6px; padding:2px 8px; border-radius:8px; display:inline-block; }
+
+
+/* Analizador IA fragmentación */
+.ia-resultado-card {
+    background: rgba(167,139,250,0.06);
+    border: 1px solid rgba(167,139,250,0.25);
+    border-radius: 10px;
+    padding: 1.2rem;
+}
+.ia-resultado-card .ia-p80 {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: var(--purple);
+    line-height: 1;
+}
+.ia-resultado-card .ia-seccion {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(167,139,250,0.15);
+    font-size: 0.82rem;
+    color: var(--text-dim);
+    line-height: 1.6;
+}
+.ia-chip {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 10px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    margin: 2px;
+}
+.ia-chip.fino   { background:rgba(52,211,153,0.15); color:#34d399; border:1px solid rgba(52,211,153,0.3); }
+.ia-chip.medio  { background:rgba(251,191,36,0.15); color:#fbbf24; border:1px solid rgba(251,191,36,0.3); }
+.ia-chip.grueso { background:rgba(248,113,113,0.15); color:#f87171; border:1px solid rgba(248,113,113,0.3); }
+.ia-loading { display:flex; align-items:center; gap:10px; padding:16px; color:var(--purple); font-weight:700; }
+@keyframes iaSpin { to { transform: rotate(360deg); } }
+.ia-spinner { animation: iaSpin 1s linear infinite; display:inline-block; }
+
+
+/* ── Collapsible form sections ── */
+.chart-header[onclick] { transition: background 0.2s; border-radius: 6px; padding: 8px 10px; margin: -8px -10px 0; }
+.chart-header[onclick]:hover { background: rgba(217,119,6,0.07); }
+.chart-header[onclick] + div { overflow: hidden; }
+
+
+/* ═══════════════════════════════════
+   MOBILE / PWA RESPONSIVE
+   ═══════════════════════════════════ */
+@media (max-width: 768px) {
+    .top-navbar { padding: 0.5rem 0.8rem !important; gap: 8px; }
+    .logo-wrapper { gap: 8px; }
+    .logo-title { font-size: 0.85rem !important; }
+    .logo-wrapper small { display: none; }
+    #nav-fecha-hoy { display: none; }
+    #header-turno-restante { display: none; }
+    .top-controls { gap: 6px; }
+    .top-controls button[onclick="exportarDatos()"],
+    .top-controls label { display: none; } /* hide backup/restore on mobile */
+
+    .nav-menu { 
+        display: flex; 
+        overflow-x: auto; 
+        gap: 4px; 
+        padding: 6px 8px;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+    .nav-menu::-webkit-scrollbar { display: none; }
+    .nav-link { 
+        white-space: nowrap; 
+        padding: 6px 10px !important; 
+        font-size: 0.72rem !important;
+        flex-shrink: 0;
+    }
+    .nav-link i { font-size: 0.85rem; }
+
+    .main-content { padding: 0.8rem !important; }
+    
+    .grid-kpi { grid-template-columns: repeat(2, 1fr) !important; gap: 0.6rem !important; }
+    .grid-main { grid-template-columns: 1fr !important; gap: 0.8rem !important; }
+    
+    .kpi-card { padding: 0.8rem !important; }
+    .kpi-card h4 { font-size: 0.6rem !important; }
+    .kpi-info span[style*="2rem"],
+    .kpi-info span[style*="1.8rem"] { font-size: 1.5rem !important; }
+
+    .chart-card { padding: 0.8rem !important; }
+    .chart-header { font-size: 0.82rem !important; }
+
+    /* Registro turno full width on mobile */
+    #content-registro-turno > div[style*="grid-template-columns:1fr 1fr"] {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Section headers smaller */
+    h2 { font-size: 1rem !important; }
+
+    /* Smart summary */
+    .smart-summary-container { padding: 0.7rem 0.9rem !important; }
+    .smart-text { font-size: 0.82rem !important; }
+}
+
+@media (max-width: 480px) {
+    .grid-kpi { grid-template-columns: 1fr 1fr !important; }
+    .logo-title span { display: none; } /* hide "Adolfo Guerrico SA" */
+}
+
+/* Touch targets */
+@media (hover: none) {
+    .nav-link, button, .chart-header[onclick] { 
+        min-height: 40px; 
+        display: flex;
+        align-items: center;
+    }
+    input, select { min-height: 38px; font-size: 16px !important; } /* prevent zoom on iOS */
+}
+
+</style>
+</head>
+<body>
+
+<header class="top-navbar">
+    <div class="logo-wrapper">
+        <!-- Logo placeholder: reemplazá src con tu imagen real -->
+        <div style="width:46px;height:46px;background:linear-gradient(135deg,#1d4ed8,#3b82f6);border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:1.1rem;box-shadow:0 4px 12px rgba(59,130,246,0.4);">AG</div>
+        <div>
+            <div class="logo-title">Dashboard Ejecutivo — <span>Adolfo Guerrico SA</span></div>
+            <small>v4.2 — Sistema Integrado de Control Operativo</small>
+        </div>
+    </div>
+    <div class="top-controls">
+        <div id="nav-status-pill" class="status-pill" onclick="sincronizarOneDrive()" title="Sincronizar con OneDrive">
+            <i class="ph ph-cloud-arrow-down"></i> <span id="nav-fecha-hoy">Sincronizar</span>
+        </div>
+        <div class="time-machine">
+            <input type="month" id="global-month-filter" title="Mes de Análisis">
+        </div>
+        <button onclick="exportarDatos()" title="Exportar datos a JSON" style="background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.4);color:var(--success,#22c55e);border-radius:8px;padding:6px 12px;font-size:0.78rem;cursor:pointer;font-weight:700;">
+            💾 Backup
+        </button>
+        <label title="Restaurar datos desde JSON" style="background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.4);color:var(--accent);border-radius:8px;padding:6px 12px;font-size:0.78rem;cursor:pointer;font-weight:700;">
+            📂 Restore <input type="file" accept=".json" style="display:none;" onchange="importarDatos(this)">
+        </label>
+        <div id="header-turno-badge" style="display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:0.78rem;font-weight:600;background:rgba(251,191,36,0.15);color:var(--warning);cursor:default;transition:background 0.3s,color 0.3s;">
+            <span id="header-turno-icon" style="font-size:0.9rem;">☀️</span>
+            <span id="header-turno-texto" style="font-weight:700;">Turno Día</span>
+            <span style="opacity:0.5;font-size:0.7rem;">|</span>
+            <span id="header-reloj-mini" style="font-family:'Rajdhani',monospace;font-size:0.88rem;font-weight:800;letter-spacing:0.5px;"></span>
+            <span style="opacity:0.5;font-size:0.7rem;">|</span>
+            <span id="header-turno-restante" style="font-size:0.7rem;opacity:0.8;"></span>
+        </div>
+        <button id="pwa-install-btn" onclick="installPWA()" title="Instalar app en el celular" style="display:none;background:rgba(217,119,6,0.15);border:1px solid rgba(217,119,6,0.3);color:var(--accent);border-radius:8px;padding:6px 10px;font-size:0.78rem;cursor:pointer;font-weight:700;gap:5px;align-items:center;">
+            <i class="ph-fill ph-device-mobile"></i> Instalar
+        </button>
+        <button id="theme-toggle" onclick="toggleTheme()" title="Cambiar tema" style="padding:6px 10px;min-width:38px;justify-content:center;">
+            <i id="theme-toggle-icon" class="ph ph-sun" style="font-size:1.1rem;"></i>
+        </button>
+    </div>
+</header>
+
+<nav class="nav-menu">
+    <a class="nav-link active" data-view="resumen"><i class="ph-fill ph-chart-bar"></i> Resumen</a>
+    <a class="nav-link" data-view="ventas" id="nav-ventas" style="display:none;"><i class="ph-fill ph-currency-circle-dollar"></i> Ventas B2B</a>
+    <a class="nav-link" data-view="produccion"><i class="ph-fill ph-factory"></i> Operaciones</a>
+    <a class="nav-link" data-view="costos"><i class="ph-fill ph-currency-dollar"></i> Consumos</a>
+    <a class="nav-link" data-view="voladuras"><i class="ph-fill ph-fire"></i> Voladuras</a>
+    <a class="nav-link" data-view="mantenimiento-fijo"><i class="ph-fill ph-wrench"></i> Mante. Fijo</a>
+    <a class="nav-link" data-view="mantenimiento-movil"><i class="ph-fill ph-car-profile"></i> Flota Liviana</a>
+    <a class="nav-link" data-view="mantenimiento-pesado"><i class="ph-fill ph-tractor"></i> Flota Pesada</a>
+    <a class="nav-link" id="nav-inventario" data-view="inventario" style="display:none;"><i class="ph-fill ph-package"></i> Inventario
+            </a>
+            <a class="nav-link" id="nav-mantenimiento-plan" data-view="mantenimiento-plan" style="display:none;">
+                <i class="ph-fill ph-calendar-check"></i> Plan Mant.
+            </a>
+            <a class="nav-link" id="nav-turno-live" data-view="turno-live" style="display:none;">
+                <i class="ph-fill ph-broadcast"></i> Turno Live
+            </a>
+            <a class="nav-link" id="nav-pesometros" data-view="pesometros" style="display:none;">
+                <i class="ph-fill ph-scales"></i> Pesómetros
+            </a>
+            <a class="nav-link" data-view="analytics"><i class="ph-fill ph-chart-scatter"></i> Análisis</a>
+    <a class="nav-link" data-view="configuracion"><i class="ph-fill ph-gear"></i> Ajustes</a>
+</nav>
+
+<main class="main-content">
+
+<!-- ======== RESUMEN ======== -->
+<section id="resumen" class="view active">
+    <div class="smart-summary-container">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;color:var(--accent);font-size:0.75rem;font-weight:700;text-transform:uppercase;">
+            <i class="ph-fill ph-sparkle"></i> Insights del Sector
+        </div>
+        <p id="smart-text-resumen" style="font-size:0.95rem;color:var(--text-main);">Calculando tendencias...</p>
+    </div>
+    <div class="grid-kpi" id="kpi-main-grid">
+
+        <!-- PRODUCCIÓN -->
+        <div class="kpi-card" style="border-top:3px solid var(--success,#22c55e);position:relative;overflow:hidden;">
+            <div class="kpi-tooltip">Suma total de Tn molidas en el mes (Primaria + P1 + P2)</div>
+            <div style="position:absolute;right:12px;top:12px;font-size:2rem;opacity:0.12;">🪨</div>
+            <div class="kpi-info">
+                <h4 style="color:var(--success,#22c55e);font-size:0.65rem;letter-spacing:1px;">PRODUCCIÓN MENSUAL</h4>
+                <div style="display:flex;align-items:baseline;gap:6px;">
+                    <span id="kpi-mensual-produccion" style="font-size:2.2rem;font-weight:800;color:var(--text-main);">0</span>
+                    <small style="color:var(--text-dim);font-size:0.85rem;">Tn</small>
+                </div>
+                <div class="kpi-smart-data" style="margin-top:4px;">
+                    <div class="smart-subtext" style="font-size:0.7rem;">Prom: <b id="kpi-avg-dia">0</b> Tn/día</div>
+                    <span id="trend-prod" class="trend-badge trend-neutral" style="font-size:0.65rem;margin-top:2px;display:inline-block;"></span>
+                    <div style="background:rgba(128,128,128,0.1);border-radius:4px;height:4px;margin-top:4px;overflow:hidden;">
+                        <div id="kpi-prod-bar" style="height:100%;background:var(--success,#22c55e);width:0%;transition:width 1s;border-radius:4px;"></div>
+                    </div>
+                    <div class="smart-subtext" style="font-size:0.68rem;margin-top:2px;">Proyección: <b id="kpi-proy-mes">0</b> Tn</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DESPACHO -->
+        <div class="kpi-card" style="border-top:3px solid var(--color-stock,#10b981);position:relative;overflow:hidden;">
+            <div class="kpi-tooltip">Toneladas netas salidas por balanza</div>
+            <div style="position:absolute;right:12px;top:12px;font-size:2rem;opacity:0.12;">🚚</div>
+            <div class="kpi-info">
+                <h4 style="color:var(--color-stock,#10b981);font-size:0.65rem;letter-spacing:1px;">DESPACHO MENSUAL</h4>
+                <div style="display:flex;align-items:baseline;gap:6px;">
+                    <span id="kpi-mensual-despacho" style="font-size:2.2rem;font-weight:800;color:var(--text-main);">0</span>
+                    <small style="color:var(--text-dim);font-size:0.85rem;">Tn</small>
+                </div>
+                <div class="kpi-smart-data" style="margin-top:4px;">
+                    <div class="smart-subtext">Proyección: <b id="kpi-proy-despacho">0</b> Tn</div>
+                    <span id="trend-desp" class="trend-badge trend-neutral" style="font-size:0.65rem;margin-top:2px;display:inline-block;"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- STOCK ACUMULADO -->
+        <div class="kpi-card" style="border-top:3px solid var(--accent);position:relative;overflow:hidden;">
+            <div class="kpi-tooltip">Suma histórica: todo lo producido menos todo lo despachado</div>
+            <div style="position:absolute;right:12px;top:12px;font-size:2rem;opacity:0.12;">⛏️</div>
+            <div class="kpi-info">
+                <h4 style="color:var(--accent);font-size:0.65rem;letter-spacing:1px;">STOCK ACUMULADO</h4>
+                <div style="display:flex;align-items:baseline;gap:6px;">
+                    <span id="kpi-mensual-balance" style="font-size:2.2rem;font-weight:800;color:var(--text-main);">0</span>
+                    <small style="color:var(--text-dim);font-size:0.85rem;">Tn</small>
+                </div>
+                <div class="kpi-smart-data" style="margin-top:4px;">
+                    <div id="kpi-balance-estado" class="smart-subtext" style="margin-top:2px;">+0 Tn este mes</div>
+                    <div id="kpi-balance-acum" class="smart-subtext" style="margin-top:2px;font-size:0.68rem;">Acumulado año: 0 Tn</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- COMBUSTIBLE L/Tn -->
+        <div class="kpi-card" style="border-top:3px solid var(--warning);position:relative;overflow:hidden;">
+            <div class="kpi-tooltip">Litros de combustible consumidos por tonelada procesada</div>
+            <div style="position:absolute;right:12px;top:12px;font-size:2rem;opacity:0.12;">⛽</div>
+            <div class="kpi-info">
+                <h4 style="color:var(--warning);font-size:0.65rem;letter-spacing:1px;">RATIO COMBUSTIBLE</h4>
+                <div style="display:flex;align-items:baseline;gap:6px;">
+                    <span id="kpi-ratio-combustible" style="font-size:2.2rem;font-weight:800;color:var(--text-main);">—</span>
+                    <small style="color:var(--text-dim);font-size:0.85rem;">L/Tn</small>
+                </div>
+                <div class="kpi-smart-data" style="margin-top:4px;">
+                    <div id="kpi-comb-litros" class="smart-subtext">Cargá los litros abajo ↓</div>
+                    <span id="trend-fuel" class="trend-badge trend-neutral" style="font-size:0.65rem;margin-top:2px;display:inline-block;"></span>
+                    <div id="kpi-comb-estado" class="smart-subtext" style="font-weight:700;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- COSTO OPERATIVO $/Tn -->
+        <div class="kpi-card" style="border-top:3px solid var(--danger);position:relative;overflow:hidden;">
+            <div class="kpi-tooltip">Costo total (pesos) dividido toneladas producidas</div>
+            <div style="position:absolute;right:12px;top:12px;font-size:2rem;opacity:0.12;">💵</div>
+            <div class="kpi-info">
+                <h4 style="color:var(--danger);font-size:0.65rem;letter-spacing:1px;">COSTO OPERATIVO</h4>
+                <div style="display:flex;align-items:baseline;gap:6px;">
+                    <span id="kpi-costo-tn" style="font-size:2.2rem;font-weight:800;color:var(--text-main);">—</span>
+                    <small style="color:var(--text-dim);font-size:0.85rem;">$/Tn</small>
+                </div>
+                <div class="kpi-smart-data" style="margin-top:4px;">
+                    <div id="kpi-gasto-total" class="smart-subtext">Total: $ 0</div>
+                    <span id="trend-cost" class="trend-badge trend-neutral" style="font-size:0.65rem;margin-top:2px;display:inline-block;"></span>
+                    <div id="kpi-costo-estado" class="smart-subtext"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="modulo-automatizacion-card" class="chart-card" style="border-left:4px solid var(--warning);margin-bottom:2rem;background:linear-gradient(90deg,rgba(245,158,11,0.05) 0%,transparent 100%);">
+        <div class="chart-header" style="border:none;padding-bottom:0;"><span style="display:flex;align-items:center;gap:8px;"><i class="ph-fill ph-robot" style="color:var(--warning);font-size:1.2rem;"></i> Asistente de Cierre Diario</span></div>
+        <p style="font-size:0.85rem;color:var(--text-dim);margin-bottom:1rem;">Generá el reporte gerencial con un solo clic.</p>
+        <div style="display:flex;gap:15px;flex-wrap:wrap;">
+            <button onclick="generarReportePDF()" style="background:var(--purple);display:flex;align-items:center;gap:8px;"><i class="ph-fill ph-file-pdf"></i> Descargar PDF</button>
+        </div>
+    </div>
+    <div class="grid-main" style="grid-template-columns:1.8fr 1fr;">
+        <div class="chart-card"><div class="chart-header"><span>Balance Operativo Mensual</span></div><canvas id="chart-balance" style="max-height:300px;"></canvas></div>
+        <div class="chart-card" style="display:flex;flex-direction:column;justify-content:center;">
+            <div class="chart-header" style="margin-bottom:0.8rem;">
+                <span><i class="ph-fill ph-truck" style="color:var(--accent);"></i> Carga Rápida de Despacho</span>
+            </div>
+            <p style="font-size:0.72rem;color:var(--text-dim);margin-bottom:1rem;">Registrá toneladas despachadas del mes sin abrir la sección de Ventas.</p>
+            <form id="form-quick-load" style="display:flex;flex-direction:column;gap:8px;">
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <input type="month" id="quick-date" required style="flex:1;margin-bottom:0;">
+                    <input type="number" id="quick-desp" placeholder="Tn despachadas" step="0.1" required style="flex:1;margin-bottom:0;">
+                    <button type="submit" style="white-space:nowrap;padding:8px 14px;margin-bottom:0;background:var(--accent);color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.82rem;">
+                        + Despacho
+                    </button>
+                </div>
+            </form>
+            <div id="quick-load-historial" style="margin-top:10px;max-height:100px;overflow-y:auto;font-size:0.75rem;color:var(--text-dim);"></div>
+        </div>
+    </div>
+    <div class="grid-main" style="grid-template-columns:1fr;margin-top:1.5rem;">
+        <div class="chart-card">
+            <div class="chart-header" onclick="toggleSection('carga-litros')" style="cursor:pointer;user-select:none;">
+                <span>Eficiencia Combustible (L/Tn) — Evolución Mensual</span>
+                <span id="caret-carga-litros" style="font-size:0.78rem;color:var(--text-dim);">▸</span>
+            </div>
+            <div style="height:240px;"><canvas id="chart-eficiencia-combustible"></canvas></div>
+            <div id="content-carga-litros" style="display:none;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);">
+                <div style="font-size:0.72rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;margin-bottom:10px;"><i class="ph-fill ph-gas-pump" style="color:var(--warning);"></i> Cargar Litros Consumidos del Mes</div>
+                <form id="form-litros-mes" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
+                    <div>
+                        <label style="font-size:0.7rem;color:var(--text-dim);display:block;margin-bottom:3px;">Mes</label>
+                        <input type="month" id="litros-mes-fecha" style="padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.82rem;">
+                    </div>
+                    <div>
+                        <label style="font-size:0.7rem;color:var(--text-dim);display:block;margin-bottom:3px;">Litros diesel consumidos</label>
+                        <input type="number" id="litros-mes-valor" placeholder="Ej: 45000" min="0" step="1" style="padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.82rem;width:180px;">
+                    </div>
+                    <button type="submit" style="padding:7px 16px;font-size:0.82rem;font-weight:700;">Guardar</button>
+                </form>
+                <div id="litros-historial" style="margin-top:10px;font-size:0.75rem;color:var(--text-dim);"></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ======== VENTAS ======== -->
+<section id="ventas" class="view">
+    <div class="smart-summary-container"><p style="font-size:0.95rem;color:var(--text-main);">Módulo Comercial — En construcción</p></div>
+    <div class="chart-card" style="text-align:center;padding:3rem;">
+        <i class="ph-fill ph-cone" style="font-size:4rem;color:var(--warning);margin-bottom:1rem;"></i>
+        <h3>Módulo en Desarrollo</h3>
+        <p style="color:var(--text-dim);">Cruce de remitos de balanza con facturación y catálogo de productos.</p>
+    </div>
+</section>
+
+<!-- ======== PRODUCCIÓN ======== -->
+<section id="produccion" class="view">
+
+    <!-- ── FILA 1: Resumen inteligente + Export ── -->
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.2rem;gap:1rem;flex-wrap:wrap;">
+        <div class="smart-summary-container" style="flex:1;min-width:200px;margin-bottom:0;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;color:var(--accent);font-size:0.72rem;font-weight:700;text-transform:uppercase;"><i class="ph-fill ph-sparkle"></i> Resumen Operativo</div>
+            <p class="smart-text" style="font-size:0.88rem;color:var(--text-main);margin:0;">Analizando datos...</p>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">
+            <button onclick="generarReportePDF()" style="background:var(--purple);display:flex;align-items:center;gap:6px;padding:7px 14px;font-size:0.8rem;"><i class="ph ph-file-pdf"></i> PDF</button>
+        </div>
+    </div>
+
+    <!-- ── FILA 2: KPIs producción mes (5 tarjetas) ── -->
+    <div class="grid-kpi" style="margin-bottom:1.2rem;">
+
+        <!-- TOTAL PRODUCIDO -->
+        <div class="kpi-card" style="border-top:3px solid var(--success);">
+            <h4 style="color:var(--success);font-size:0.62rem;letter-spacing:1px;margin-bottom:6px;">TOTAL PRODUCIDO</h4>
+            <div style="display:flex;align-items:baseline;gap:5px;">
+                <span id="kpi-prod-total-ops" style="font-size:2rem;font-weight:800;color:var(--text-main);">0</span>
+                <small style="color:var(--text-dim);">Tn</small>
+            </div>
+            <div style="background:rgba(128,128,128,0.12);border-radius:3px;height:4px;margin:6px 0;overflow:hidden;">
+                <div id="bar-prod-total" style="height:100%;width:0%;background:var(--success);border-radius:3px;transition:width 1s;"></div>
+            </div>
+            <div style="font-size:0.68rem;color:var(--text-dim);">Prom: <b id="kpi-prod-avg-dia-ops">0</b> Tn/día · Proy: <b id="kpi-prod-proy-ops">0</b> Tn</div>
+        </div>
+
+        <!-- EFICIENCIA GLOBAL -->
+        <div class="kpi-card" style="border-top:3px solid var(--accent-2);">
+            <h4 style="color:var(--accent-2);font-size:0.62rem;letter-spacing:1px;margin-bottom:6px;">EFICIENCIA GLOBAL</h4>
+            <div style="display:flex;align-items:baseline;gap:5px;">
+                <span id="kpi-efic-global" style="font-size:2rem;font-weight:800;color:var(--text-main);">—</span>
+                <small style="color:var(--text-dim);">Tn/h</small>
+            </div>
+            <div style="font-size:0.68rem;color:var(--text-dim);margin-top:6px;">Horas operadas: <b id="kpi-hrs-total">0</b> hs</div>
+            <div style="font-size:0.68rem;color:var(--text-dim);">Horas perdidas: <b id="kpi-hrs-perdidas-total" style="color:var(--danger);">0</b> hs</div>
+        </div>
+
+        <!-- PRIMARIA ALTAIRAC -->
+        <div class="kpi-card" id="kpi-primaria" style="border-top:3px solid var(--success);">
+            <h4 style="color:var(--success);font-size:0.62rem;letter-spacing:1px;margin-bottom:6px;">PRIMARIA ALTAIRAC</h4>
+            <div style="display:flex;align-items:baseline;gap:5px;">
+                <span id="text-primaria" style="font-size:1.8rem;font-weight:800;color:var(--text-main);">0</span>
+                <small style="color:var(--text-dim);">Tn</small>
+            </div>
+            <div style="background:rgba(128,128,128,0.12);border-radius:3px;height:4px;margin:5px 0;overflow:hidden;">
+                <div id="bar-primaria" style="height:100%;width:0%;background:var(--success);border-radius:3px;transition:width 1s;"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:0.66rem;color:var(--text-dim);">
+                <span id="kpi-primaria-efic">— Tn/h</span><span id="kpi-primaria-hrs">— hs</span>
+            </div>
+        </div>
+
+        <!-- PLANTA 1 -->
+        <div class="kpi-card" id="kpi-planta1" style="border-top:3px solid var(--warning);">
+            <h4 style="color:var(--warning);font-size:0.62rem;letter-spacing:1px;margin-bottom:6px;">PLANTA 1</h4>
+            <div style="display:flex;align-items:baseline;gap:5px;">
+                <span id="text-planta1" style="font-size:1.8rem;font-weight:800;color:var(--text-main);">0</span>
+                <small style="color:var(--text-dim);">Tn</small>
+            </div>
+            <div style="background:rgba(128,128,128,0.12);border-radius:3px;height:4px;margin:5px 0;overflow:hidden;">
+                <div id="bar-planta1" style="height:100%;width:0%;background:var(--warning);border-radius:3px;transition:width 1s;"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:0.66rem;color:var(--text-dim);">
+                <span id="kpi-planta1-efic">— Tn/h</span><span id="kpi-planta1-hrs">— hs</span>
+            </div>
+        </div>
+
+        <!-- PRIMARIA SVEDALA -->
+        <div class="kpi-card" id="kpi-planta2" style="border-top:3px solid var(--accent);">
+            <h4 style="color:var(--accent);font-size:0.62rem;letter-spacing:1px;margin-bottom:6px;">PRIMARIA SVEDALA</h4>
+            <div style="display:flex;align-items:baseline;gap:5px;">
+                <span id="text-planta2" style="font-size:1.8rem;font-weight:800;color:var(--text-main);">0</span>
+                <small style="color:var(--text-dim);">Tn</small>
+            </div>
+            <div style="background:rgba(128,128,128,0.12);border-radius:3px;height:4px;margin:5px 0;overflow:hidden;">
+                <div id="bar-planta2" style="height:100%;width:0%;background:var(--accent);border-radius:3px;transition:width 1s;"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:0.66rem;color:var(--text-dim);">
+                <span id="kpi-planta2-efic">— Tn/h</span><span id="kpi-planta2-hrs">— hs</span>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ── FILA 3: Gráfico turnos + Registro (colapsable) ── -->
+    <div class="grid-main" style="grid-template-columns:1.3fr 1fr;margin-bottom:1.2rem;">
+
+        <!-- Ranking operarios + paradas -->
+        <div class="chart-card">
+            <div class="chart-header">
+                <span><i class="ph-fill ph-users" style="color:var(--accent);"></i> Ranking Operarios</span>
+                <select id="filtro-turno-ranking" style="padding:4px 8px;font-size:0.8rem;width:auto;margin-bottom:0;">
+                    <option value="Todos">Todos</option>
+                    <option value="Día">Día</option>
+                    <option value="Noche">Noche</option>
+                </select>
+            </div>
+            <div style="max-height:200px;overflow-y:auto;">
+                <table class="ranking-table"><thead><tr><th>Operario</th><th>Sector</th><th>Turno</th><th>Rendimiento</th><th>Pérdida USD</th></tr></thead><tbody id="worker-ranking-body"></tbody></table>
+            </div>
+            <div style="margin-top:1rem;border-top:1px solid var(--border);padding-top:1rem;">
+                <div style="font-size:0.72rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;margin-bottom:8px;">Motivos de Parada — Horas perdidas</div>
+                <div style="height:180px;"><canvas id="chart-motivos-parada"></canvas></div>
+            </div>
+        </div>
+
+        <!-- Registro de Turno (colapsable) -->
+        <div class="chart-card">
+            <div class="chart-header" onclick="toggleSection('registro-turno')" style="cursor:pointer;user-select:none;">
+                <span><i class="ph-fill ph-clock" style="color:var(--accent);"></i> Registrar Turno</span>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <span id="turno-semana-badge" style="font-size:0.7rem;font-weight:700;padding:3px 8px;border-radius:20px;background:rgba(59,130,246,0.15);color:var(--accent);"></span>
+                    <span id="caret-registro-turno" style="font-size:0.8rem;color:var(--text-dim);">▸</span>
+                </div>
+            </div>
+            <div id="content-registro-turno" style="display:none;">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0;">
+                    <div>
+                        <label style="font-size:0.66rem;color:var(--text-dim);">Fecha</label>
+                        <input type="date" id="adv-date" onchange="actualizarBadgeTurno()" required style="width:100%;padding:5px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.82rem;">
+                    </div>
+                    <div>
+                        <label style="font-size:0.66rem;color:var(--text-dim);">Turno</label>
+                        <select id="adv-shift" required style="width:100%;padding:5px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.82rem;">
+                            <option value="Dia">Turno Dia</option>
+                            <option value="Noche">Turno Noche</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="margin-bottom:8px;">
+                    <label style="font-size:0.66rem;color:var(--text-dim);">Estado del turno</label>
+                    <select id="adv-status" required style="width:100%;padding:5px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.82rem;">
+                        <option value="Normal">Normal</option>
+                        <option value="Parada Mecanica">Parada Mecanica</option>
+                        <option value="Parada Electrica">Parada Electrica</option>
+                        <option value="Mantenimiento">Mantenimiento</option>
+                        <option value="Sin Material">Sin Material</option>
+                    </select>
+                </div>
+                <div style="font-size:0.66rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;margin-bottom:6px;">Tn y horas por planta</div>
+                <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;">
+                    <!-- Primaria -->
+                    <div style="background:rgba(34,197,94,0.07);border:1px solid rgba(34,197,94,0.2);border-radius:8px;padding:8px;">
+                        <div style="font-size:0.63rem;font-weight:700;color:var(--success);margin-bottom:5px;">PRIMARIA ALTAIRAC</div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;">
+                            <select id="adv-worker-primaria" style="grid-column:1/-1;padding:3px 5px;border-radius:5px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.72rem;margin-bottom:2px;"><option value="">Plantista...</option></select>
+                            <input type="number" id="adv-tn-primaria" placeholder="Tn" min="0" step="0.1" style="padding:4px;border-radius:5px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.78rem;">
+                            <input type="number" id="adv-hs-primaria" placeholder="Hs mol." min="0" step="0.1" style="padding:4px;border-radius:5px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.78rem;">
+                            <input type="number" id="adv-hs-alteirac" placeholder="Hs Alt." min="0" step="0.1" style="padding:4px;border-radius:5px;border:1px solid rgba(245,158,11,0.3);background:rgba(245,158,11,0.04);color:var(--text-main);font-size:0.72rem;">
+                        </div>
+                    </div>
+                    <!-- Planta 1 -->
+                    <div style="background:rgba(251,191,36,0.07);border:1px solid rgba(251,191,36,0.2);border-radius:8px;padding:8px;">
+                        <div style="font-size:0.63rem;font-weight:700;color:var(--warning);margin-bottom:5px;">PLANTA 1</div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;">
+                            <select id="adv-worker-planta1" style="grid-column:1/-1;padding:3px 5px;border-radius:5px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.72rem;margin-bottom:2px;"><option value="">Plantista...</option></select>
+                            <input type="number" id="adv-tn-planta1" placeholder="Tn" min="0" step="0.1" style="padding:4px;border-radius:5px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.78rem;">
+                            <input type="number" id="adv-hs-planta1" placeholder="Hs mol." min="0" step="0.1" style="padding:4px;border-radius:5px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.78rem;">
+                            <input type="number" id="adv-hs-n1560" placeholder="Hs 1560" min="0" step="0.1" style="padding:4px;border-radius:5px;border:1px solid rgba(180,83,9,0.2);background:rgba(59,130,246,0.03);color:var(--text-main);font-size:0.72rem;">
+                            <input type="number" id="adv-hs-hp400" placeholder="Hs HP400" min="0" step="0.1" style="padding:4px;border-radius:5px;border:1px solid rgba(180,83,9,0.2);background:rgba(59,130,246,0.03);color:var(--text-main);font-size:0.72rem;">
+                        </div>
+                    </div>
+                    <!-- Svedala -->
+                    <div style="background:rgba(59,130,246,0.06);border:1px solid rgba(180,83,9,0.18);border-radius:8px;padding:8px;">
+                        <div style="font-size:0.63rem;font-weight:700;color:var(--accent);margin-bottom:5px;">PRIMARIA SVEDALA</div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;">
+                            <select id="adv-worker-planta2" style="grid-column:1/-1;padding:3px 5px;border-radius:5px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.72rem;margin-bottom:2px;"><option value="">Plantista...</option></select>
+                            <input type="number" id="adv-tn-planta2" placeholder="Tn" min="0" step="0.1" style="padding:4px;border-radius:5px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.78rem;">
+                            <input type="number" id="adv-hs-planta2" placeholder="Hs mol." min="0" step="0.1" style="padding:4px;border-radius:5px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.78rem;">
+                            <input type="number" id="adv-hs-svedala" placeholder="Hs Sved." min="0" step="0.1" style="padding:4px;border-radius:5px;border:1px solid rgba(139,92,246,0.25);background:rgba(139,92,246,0.03);color:var(--text-main);font-size:0.72rem;">
+                            <input type="number" id="adv-hs-hp100" placeholder="Hs HP100" min="0" step="0.1" style="padding:4px;border-radius:5px;border:1px solid rgba(139,92,246,0.25);background:rgba(139,92,246,0.03);color:var(--text-main);font-size:0.72rem;">
+                        </div>
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:auto 1fr;gap:8px;margin-bottom:10px;align-items:center;">
+                    <div style="background:rgba(239,68,68,0.08);border:1px dashed var(--danger);border-radius:8px;padding:6px 12px;text-align:center;">
+                        <div style="font-size:0.6rem;color:var(--text-dim);">Hs Perdidas</div>
+                        <div id="adv-hrs-perdidas" style="font-weight:800;font-size:1.1rem;color:var(--danger);">0.0</div>
+                    </div>
+                    <input type="text" id="adv-obs" placeholder="Observaciones del turno..." style="padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.82rem;">
+                </div>
+                <button type="button" onclick="registrarTurnoCompleto()" style="width:100%;background:var(--accent);color:#fff;border:none;border-radius:8px;padding:9px;font-size:0.88rem;font-weight:700;cursor:pointer;">
+                    <i class="ph-fill ph-check-circle"></i> Registrar Turno Completo
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── FILA 4: Importar Excel (colapsable) ── -->
+    <div class="chart-card" style="margin-bottom:1.2rem;border:1px dashed var(--accent);background:rgba(217,119,6,0.03);">
+        <div class="chart-header" onclick="toggleSection('import-prod')" style="cursor:pointer;user-select:none;">
+            <span><i class="ph-fill ph-file-xls" style="color:var(--success);"></i> Importar Excel de Producción</span>
+            <span id="caret-import-prod" style="font-size:0.78rem;color:var(--text-dim);">▸</span>
+        </div>
+        <div id="content-import-prod" style="display:none;margin-top:1rem;">
+            <label class="upload-zone" for="file-produccion"
+                ondragover="event.preventDefault();this.classList.add('dragover')"
+                ondragleave="this.classList.remove('dragover')"
+                ondrop="event.preventDefault();this.classList.remove('dragover');document.getElementById('file-produccion').files=event.dataTransfer.files;procesarExcelProduccion();">
+                <input type="file" id="file-produccion" accept=".xlsx,.xls" onchange="procesarExcelProduccion()">
+                <i class="ph-fill ph-upload-simple" style="font-size:1.8rem;color:var(--accent);margin-bottom:8px;display:block;"></i>
+                <b style="color:var(--text-main);">Arrastrar el Excel de Produccion mensual o hacer clic</b><br>
+                <small style="color:var(--text-dim);">Detecta la hoja del mes activo — Lee turnos, Tn y horas por trituradora</small>
+            </label>
+            <div id="prod-import-status" style="display:none;margin-top:12px;padding:10px 14px;border-radius:8px;font-size:0.82rem;font-weight:700;align-items:center;gap:10px;"></div>
+        </div>
+    </div>
+
+    <!-- ── FILA 5: Tabla de turnos importados (oculta hasta que haya datos) ── -->
+    <div id="prod-turnos-panel" style="display:none;margin-bottom:1.2rem;">
+        <div class="chart-card">
+            <div class="chart-header">
+                <span><i class="ph-fill ph-calendar-check"></i> Turnos Importados — Asignar Operario</span>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <span id="prod-turnos-count" style="font-size:0.78rem;color:var(--text-dim);"></span>
+                    <button type="button" onclick="guardarOperariosAsignados()" style="background:var(--success);padding:6px 14px;font-size:0.8rem;display:flex;align-items:center;gap:5px;">
+                        <i class="ph-bold ph-check"></i> Guardar Asignaciones
+                    </button>
+                </div>
+            </div>
+            <div style="max-height:380px;overflow-y:auto;">
+                <table class="ranking-table" style="width:100%;">
+                    <thead><tr><th>Dia</th><th>Turno</th><th>Produccion</th><th>Hs Trabajo</th><th>Hs Perdidas</th><th>Trituradoras</th><th>Obs.</th><th>Operario</th></tr></thead>
+                    <tbody id="prod-turnos-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- IDs legacy que el JS puede buscar (ocultos) -->
+    <span id="kpi-mensual-primaria" style="display:none;"></span>
+    <span id="kpi-mensual-planta1"  style="display:none;"></span>
+    <span id="kpi-mensual-planta2"  style="display:none;"></span>
+    <span id="tn-manual-mes-label"  style="display:none;"></span>
+    <span id="tn-manual-primaria"   style="display:none;"></span>
+    <span id="tn-actual-primaria"   style="display:none;"></span>
+    <span id="tn-manual-planta2"    style="display:none;"></span>
+    <span id="tn-actual-planta2"    style="display:none;"></span>
+    <span id="tn-historial-body"    style="display:none;"></span>
+
+</section>
+
+<!-- ======== COSTOS ======== -->
+<section id="costos" class="view">
+
+    <!-- Resumen inteligente -->
+    <div class="smart-summary-container" style="margin-bottom:1.2rem;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;color:var(--accent);font-size:0.72rem;font-weight:700;text-transform:uppercase;"><i class="ph-fill ph-sparkle"></i> Resumen del Sector</div>
+        <p class="smart-text" style="font-size:0.88rem;color:var(--text-main);margin:0;">Analizando...</p>
+    </div>
+
+        <!-- ── KPIs principales (dinámicos — se generan desde renderConsumosKPIs) ── -->
+    <div id="costos-kpi-row" class="grid-kpi" style="margin-bottom:1.2rem;">
+        <!-- populated by renderConsumosKPIs() -->
+    </div>
+
+    <!-- ── Gráficos    <!-- ── Gráficos ── -->
+    <div class="grid-main" style="margin-bottom:1.2rem;">
+        <div class="chart-card">
+            <div class="chart-header"><span>Evolución Mensual (USD)</span></div>
+            <div style="height:240px;"><canvas id="chart-costs-monthly-bar"></canvas></div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-header"><span>Distribución del Gasto — Mes actual</span></div>
+            <div style="height:240px;position:relative;"><canvas id="chart-costs-distribution-pie"></canvas></div>
+        </div>
+    </div>
+
+    <!-- alertas-desgaste-costos-1 moved to mantenimiento -->
+    <span id="alertas-desgaste-costos-1" style="display:none;"></span>
+
+    <!-- ── Importar Excel ── -->
+    <div class="chart-card" style="margin-bottom:1rem;border:1px dashed var(--accent);background:rgba(217,119,6,0.03);">
+        <div class="chart-header">
+            <span><i class="ph-fill ph-file-xls" style="color:var(--success);"></i> Importar Planilla de Costos Mensuales</span>
+            <span style="font-size:0.7rem;color:var(--text-dim);">Detecta el mes · Mapea cada concepto · Ignora valores 0</span>
+        </div>
+        <label class="upload-zone" for="file-consumos-excel"
+            ondragover="event.preventDefault();this.classList.add('dragover')"
+            ondragleave="this.classList.remove('dragover')"
+            ondrop="event.preventDefault();this.classList.remove('dragover');document.getElementById('file-consumos-excel').files=event.dataTransfer.files;procesarExcelConsumos();">
+            <input type="file" id="file-consumos-excel" accept=".xlsx,.xls" onchange="procesarExcelConsumos(this.files[0])">
+            <i class="ph-fill ph-upload-simple" style="font-size:1.5rem;color:var(--accent);margin-bottom:5px;display:block;"></i>
+            <b style="color:var(--text-main);">Arrastrar el Excel de costos o hacer clic</b><br>
+            <small style="color:var(--text-dim);">Columna A: concepto · Columna del mes: valor · Reemplaza el mes si ya existe</small>
+        </label>
+        <div id="consumos-import-status" style="display:none;padding:10px 14px;border-radius:8px;font-size:0.82rem;font-weight:700;margin-top:0.5rem;"></div>
+        <div id="consumos-import-preview" style="display:none;margin-top:0.8rem;"></div>
+    </div>
+
+    <!-- ── Historial de meses importados ── -->
+    <div id="consumos-historial-panel" style="display:none;" class="chart-card" style="margin-bottom:1rem;">
+    </div>
+
+    <!-- ── Carga manual (colapsable) ── -->
+    <div class="chart-card">
+        <div class="chart-header" onclick="toggleSection('insumos-mens')" style="cursor:pointer;user-select:none;margin-bottom:0;">
+            <span><i class="ph-fill ph-pencil" style="color:var(--text-dim);font-size:0.9rem;"></i> Carga Manual de Insumos</span>
+            <span id="caret-insumos-mens" style="font-size:0.78rem;color:var(--text-dim);">▸</span>
+        </div>
+        <div id="content-insumos-mens" style="display:none;margin-top:1rem;">
+            <p style="font-size:0.78rem;color:var(--text-dim);margin-bottom:1rem;">Usá esto si no tenés el Excel o querés corregir un valor puntual.</p>
+            <form id="form-consumptions" style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;align-items:end;">
+                <div><label style="font-size:0.75rem;color:var(--text-dim);font-weight:700;display:block;margin-bottom:4px;">Mes</label><input type="month" id="cons-date" required></div>
+                <div><label style="font-size:0.75rem;color:var(--text-dim);font-weight:700;display:block;margin-bottom:4px;">Diesel (Ltr)</label><input type="number" id="cons-diesel" placeholder="0"></div>
+                <div><label style="font-size:0.75rem;color:var(--text-dim);font-weight:700;display:block;margin-bottom:4px;">Lubricantes (Ltr)</label><input type="number" id="cons-lub" placeholder="0"></div>
+                <div><label style="font-size:0.75rem;color:var(--text-dim);font-weight:700;display:block;margin-bottom:4px;">Electricidad (kWh)</label><input type="number" id="cons-electric" placeholder="0"></div>
+                <div><label style="font-size:0.75rem;color:var(--text-dim);font-weight:700;display:block;margin-bottom:4px;">Almacén / Repuestos ($)</label><input type="number" id="cons-almacen" placeholder="0"></div>
+                <div><label style="font-size:0.75rem;color:var(--text-dim);font-weight:700;display:block;margin-bottom:4px;">Voladuras ($)</label><input type="number" id="cons-cost" placeholder="0"></div>
+                <button type="submit" style="grid-column:1/-1;padding:10px;font-size:0.88rem;">Guardar Insumos</button>
+            </form>
+        </div>
+    </div>
+
+</section>
+
+<!-- ======== VOLADURAS ======== -->
+<section id="voladuras" class="view">
+    <div class="smart-summary-container"><div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;color:var(--accent);font-size:0.75rem;font-weight:700;text-transform:uppercase;"><i class="ph-fill ph-sparkle"></i> Resumen del Sector</div><p class="smart-text" style="font-size:0.95rem;color:var(--text-main);">Analizando...</p></div>
+
+    <!-- Panel alertas predictivas desgaste -->
+    <div class="chart-card" style="margin-bottom:1.5rem;border-left:3px solid var(--warning);">
+        <div class="chart-header">
+            <span><i class="ph-fill ph-brain" style="color:var(--warning);"></i> Alertas Predictivas — Análisis de Desgaste</span>
+            <button onclick="analizarAlertasDesgaste()" style="padding:5px 12px;font-size:0.78rem;display:flex;align-items:center;gap:5px;">
+                <i class="ph-bold ph-arrows-clockwise"></i> Actualizar
+            </button>
+        </div>
+        <div id="alertas-desgaste-costos-2">
+            <div style="text-align:center;padding:15px;color:var(--text-dim);font-size:0.82rem;">
+                Registrá al menos 2 cambios de pieza para activar el análisis predictivo.
+            </div>
+        </div>
+    </div>
+    <div class="grid-kpi" style="grid-template-columns:repeat(5,1fr)!important;margin-bottom:2rem;">
+        <div class="kpi-card card-green"><div class="kpi-info"><h4 style="color:var(--color-prod);">TONELADAS (MES)</h4><div><span id="kpi-blast-tn-total">0</span> <small>Tn</small></div></div><div class="kpi-smart-data"><div class="smart-subtext">Roca fragmentada</div></div></div>
+        <div class="kpi-card card-red"><div class="kpi-info"><h4 style="color:var(--color-cost);">INVERSIÓN (MES)</h4><div><span id="kpi-blast-cost-total">USD 0</span></div></div><div class="kpi-smart-data"><div class="smart-subtext">Costo en explosivos</div></div></div>
+        <div class="kpi-card card-yellow"><div class="kpi-info"><h4 style="color:var(--color-ratio);">COSTO ESPECÍFICO</h4><div><span id="kpi-blast-cost-avg">0.00</span> <small>USD/Tn</small></div></div><div class="kpi-smart-data"><div class="smart-subtext">Eficiencia económica</div></div></div>
+        <div class="kpi-card card-purple"><div class="kpi-info"><h4 style="color:var(--color-stock);">EVENTOS (MES)</h4><div><span id="kpi-blast-count">0</span> <small>Disparos</small></div></div><div class="kpi-smart-data"><div class="smart-subtext">Frecuencia mensual</div></div></div>
+        <div class="kpi-card card-cyan"><div class="kpi-info"><h4 style="color:var(--accent);">EXPLOSIVOS (MES)</h4><div><span id="kpi-blast-kg">0</span> <small>Kg</small></div></div><div class="kpi-smart-data"><div class="smart-subtext" id="smart-blast-kg-factor">Factor: -- g/Tn</div></div></div>
+    </div>
+    <div class="grid-main" style="grid-template-columns:1fr 2fr;">
+        <div class="chart-card" style="display:flex;flex-direction:column;justify-content:space-between;">
+            <div>
+                <div class="chart-header" onclick="toggleSection('form-voladura')" style="cursor:pointer;user-select:none;margin-bottom:0;">
+                    <span><i class="ph-fill ph-fire" style="color:var(--danger);"></i> Registrar Evento de Voladura</span>
+                    <span id="caret-form-voladura" style="font-size:0.78rem;color:var(--text-dim);">▸</span>
+                </div>
+                <div id="content-form-voladura" style="display:none;margin-top:1rem;">
+                <form id="form-blasting" style="gap:0.8rem;display:flex;flex-direction:column;">
+                    <input type="date" id="blast-date" required>
+                    <select id="blast-frente" required style="width:100%;"><option value="" disabled selected>Seleccionar frente...</option></select>
+                    <div style="display:flex;gap:0.8rem;"><input type="number" id="blast-tn" placeholder="Tn Tiradas" style="flex:1;width:auto;margin-bottom:0;" required><input type="number" id="blast-cost" placeholder="Costo (USD)" style="flex:1;width:auto;margin-bottom:0;" required></div>
+                    <div style="display:flex;gap:0.8rem;"><input type="number" id="blast-kg" placeholder="Explosivos (Kg)" style="flex:1;width:auto;margin-bottom:0;" required><input type="number" id="blast-pozos" placeholder="Cant. Pozos" style="flex:1;width:auto;margin-bottom:0;" required><input type="number" id="blast-p80" placeholder="P80 mm (Opc.)" style="flex:1;width:auto;margin-bottom:0;"><input type="number" step="0.1" id="blast-vpp" placeholder="VPP mm/s (Opc.)" style="flex:1;width:auto;margin-bottom:0;"></div>
+                    <button type="submit"><i class="ph-fill ph-fire"></i> Cargar Voladura</button>
+                </form>
+                </div><!-- /form-voladura -->
+
+                <!-- Analizador de fragmentación por foto/video -->
+                <div class="chart-card" style="margin-top:1.5rem;border:1px dashed rgba(167,139,250,0.4);background:rgba(167,139,250,0.03);">
+                    <div class="chart-header">
+                        <span><i class="ph-fill ph-camera" style="color:var(--purple);"></i> Análisis de Fragmentación por Imagen IA</span>
+                        <span style="font-size:0.72rem;color:var(--text-dim);background:rgba(167,139,250,0.1);padding:3px 8px;border-radius:8px;border:1px solid rgba(167,139,250,0.2);">Powered by Gemini Pro Vision</span>
+                    </div>
+                    <p style="font-size:0.82rem;color:var(--text-dim);margin-bottom:1rem;">
+                        Subí una foto del material volado. Si hay una persona, camioneta u otro elemento de referencia en la imagen, la IA lo usará para estimar el P80 real.
+                    </p>
+
+                    <!-- Upload zona -->
+                    <label class="upload-zone" for="blast-foto-input" style="min-height:100px;margin-bottom:1rem;"
+                        ondragover="event.preventDefault();this.classList.add('dragover')"
+                        ondragleave="this.classList.remove('dragover')"
+                        ondrop="event.preventDefault();this.classList.remove('dragover');document.getElementById('blast-foto-input').files=event.dataTransfer.files;previewFotoBlast();">
+                        <input type="file" id="blast-foto-input" accept="image/*,video/*" onchange="previewFotoBlast()">
+                        <i class="ph-fill ph-image" style="font-size:1.6rem;color:var(--purple);margin-bottom:6px;display:block;"></i>
+                        <b style="color:var(--text-main);">Arrastrá foto o frame del video</b><br>
+                        <small style="color:var(--text-dim);">JPG, PNG · Si es video, sacá una captura primero</small>
+                    </label>
+
+                    <!-- Preview de la imagen -->
+                    <div id="blast-foto-preview" style="display:none;margin-bottom:1rem;">
+                        <img id="blast-foto-img" style="max-width:100%;max-height:300px;border-radius:8px;border:1px solid var(--border);object-fit:contain;" alt="Preview voladura">
+                    </div>
+
+                    <!-- Referencia de escala -->
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1rem;">
+                        <div>
+                            <label style="font-size:0.75rem;color:var(--text-dim);display:block;margin-bottom:4px;">Referencia de escala en la foto</label>
+                            <select id="blast-ref-escala" style="margin-bottom:0;width:100%;">
+                                <option value="persona">👤 Persona (≈1.75m)</option>
+                                <option value="camioneta">🚙 Camioneta pickup (≈2.0m alto)</option>
+                                <option value="excavadora">🚧 Komatsu PC800 (≈3.5m alto)</option>
+                                <option value="varilla">📏 Varilla/regla conocida</option>
+                                <option value="ninguna">Sin referencia</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size:0.75rem;color:var(--text-dim);display:block;margin-bottom:4px;">Tipo de roca</label>
+                            <select id="blast-tipo-roca" style="margin-bottom:0;width:100%;" onchange="mostrarInfoRoca();">
+                                <option value="caliza">Caliza</option>
+                                <option value="granito">Granito</option>
+                                <option value="basalto">Basalto</option>
+                                <option value="arenisca">Arenisca</option>
+                                <option value="otro">Otro</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Botón analizar -->
+                    <div id="blast-roca-info" style="display:none;margin-bottom:1rem;"></div>
+                    <button type="button" id="btn-analizar-blast" onclick="analizarFragmentacionIA()" 
+                        style="width:100%;background:linear-gradient(135deg,#7c3aed,#a78bfa);display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:1rem;"
+                        disabled>
+                        <i class="ph-fill ph-sparkle"></i> Analizar Fragmentación con IA
+                    </button>
+
+                    <!-- Resultado -->
+                    <div id="blast-ia-resultado" style="display:none;"></div>
+                </div>
+            </div>
+            <div style="margin-top:2rem;border-top:1px solid var(--border);padding-top:1rem;">
+                <h5 style="margin-bottom:10px;">Gestión de Frentes de Trabajo</h5>
+                <div style="display:flex;gap:10px;align-items:center;">
+                    <input type="text" id="nueva-zona-nombre" placeholder="Nombre banco..." style="flex:1;margin-bottom:0;">
+                    <input type="color" id="nueva-zona-color" value="#ef4444" style="height:44px;width:60px;cursor:pointer;padding:2px;border-radius:8px;border:1px solid var(--border)!important;background:transparent!important;margin-bottom:0;">
+                    <button type="button" onclick="agregarNuevaZona(event)" style="padding:10px 20px;white-space:nowrap;">Añadir</button>
+                </div>
+                <div id="zonas-list" style="margin-top:10px;max-height:150px;overflow-y:auto;"></div>
+            </div>
+        </div>
+        <div class="chart-card" style="padding:0.5rem;"><div id="quarry-map-container" style="width:100%;height:100%;min-height:400px;border-radius:12px;z-index:1;"></div></div>
+    </div>
+    <div class="chart-card" style="margin-top:1.5rem;">
+        <div class="chart-header"><span>Últimas Voladuras Registradas</span></div>
+        <div id="blast-list"></div>
+    </div>
+    <div class="grid-main" style="grid-template-columns:1fr 1fr;margin-top:1.5rem;">
+        <div class="chart-card"><div class="chart-header">Gasto Mensual Voladuras (USD)</div><div style="height:240px;"><canvas id="chart-blast-mensual"></canvas></div></div>
+        <div class="chart-card"><div class="chart-header">Costo Específico (USD/Tn)</div><div style="height:240px;"><canvas id="chart-blast-eficiencia"></canvas></div></div>
+        <div class="chart-card" style="grid-column:1/-1;">
+            <div class="chart-header">
+                <span><i class="ph-fill ph-chart-line" style="color:var(--success);"></i> Tn Voladas vs Tn Producidas — Evolución Mensual</span>
+                <span style="font-size:0.72rem;color:var(--text-dim);">Barras = Tn voladas · Línea = Tn producidas (Primaria)</span>
+            </div>
+            <div style="height:260px;"><canvas id="chart-blast-mensual-vol-prod"></canvas></div>
+        </div>
+    </div>
+
+
+    <!-- ══════════ PERFORADORA + ANÁLISIS IA ══════════ -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-top:1.5rem;">
+
+        <!-- PERFORADORA Sandvik DP1500i -->
+        <div class="chart-card">
+            <div class="chart-header">
+                <span><i class="ph-fill ph-hard-hat" style="color:var(--warning);"></i> Perforadora — Sandvik DP1500i</span>
+                <button onclick="calcularCostoPerforacion()" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:0.78rem;cursor:pointer;font-weight:700;">Calcular</button>
+            </div>
+            <div style="display:flex;gap:1rem;align-items:flex-start;margin-top:10px;">
+                <div style="flex-shrink:0;">
+                    <div style="width:120px;height:100px;border-radius:10px;overflow:hidden;background:linear-gradient(135deg,#1e3a5f,#0e1628);display:flex;align-items:center;justify-content:center;border:2px solid var(--accent);">
+                        <div id="perf-img-wrap" style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--text-dim);font-size:0.62rem;text-align:center;gap:3px;">
+                            <i class="ph-fill ph-hard-hat" style="font-size:2rem;color:var(--accent);"></i>
+                            <span>Sandvik DP1500i</span>
+                        </div>
+                    </div>
+                    <input type="file" id="perf-img-input" accept="image/*" style="display:none;" onchange="cargarImagenPerforadora(this)">
+                    <button onclick="document.getElementById('perf-img-input').click()" style="width:120px;margin-top:4px;background:transparent;border:1px solid var(--border);border-radius:6px;padding:3px;font-size:0.65rem;color:var(--text-dim);cursor:pointer;">Foto</button>
+                </div>
+                <div style="flex:1;">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+                        <div><label style="font-size:0.66rem;color:var(--text-dim);">Metros perforados</label>
+                            <input id="perf-metros" type="number" placeholder="0" style="width:100%;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.82rem;"></div>
+                        <div><label style="font-size:0.66rem;color:var(--text-dim);">Costo perforacion ($)</label>
+                            <input id="perf-costo-total" type="number" placeholder="0" style="width:100%;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.82rem;"></div>
+                        <div><label style="font-size:0.66rem;color:var(--text-dim);">Tn producidas</label>
+                            <input id="perf-tn" type="number" placeholder="0" style="width:100%;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.82rem;"></div>
+                        <div><label style="font-size:0.66rem;color:var(--text-dim);">Diametro broca (mm)</label>
+                            <input id="perf-diametro" type="number" placeholder="115" value="115" style="width:100%;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.82rem;"></div>
+                    </div>
+                    <div id="perf-resultado" style="display:none;background:rgba(59,130,246,0.1);border-radius:8px;padding:8px;margin-top:6px;">
+                        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;text-align:center;">
+                            <div><div style="font-size:0.6rem;color:var(--text-dim);text-transform:uppercase;">$/metro</div><div id="perf-kpi-metro" style="font-weight:800;color:var(--accent);font-size:1rem;">-</div></div>
+                            <div><div style="font-size:0.6rem;color:var(--text-dim);text-transform:uppercase;">$/Tn</div><div id="perf-kpi-tn" style="font-weight:800;color:var(--warning);font-size:1rem;">-</div></div>
+                            <div><div style="font-size:0.6rem;color:var(--text-dim);text-transform:uppercase;">m/Tn</div><div id="perf-kpi-ratio" style="font-weight:800;color:var(--success,#22c55e);font-size:1rem;">-</div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- INSUMOS: Brocas, Barras, etc. -->
+            <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px;">
+                <div style="font-size:0.72rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;margin-bottom:8px;">Insumos — Brocas y Barras</div>
+                <div style="display:grid;grid-template-columns:1.2fr 1.5fr 1fr auto;gap:5px;align-items:end;margin-bottom:8px;">
+                    <div>
+                        <label style="font-size:0.64rem;color:var(--text-dim);">Tipo</label>
+                        <select id="perf-insumo-tipo" style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.78rem;">
+                            <option value="Broca">Broca</option>
+                            <option value="Barra">Barra</option>
+                            <option value="Acople">Acople</option>
+                            <option value="Otro">Otro</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size:0.64rem;color:var(--text-dim);">Descripcion</label>
+                        <input id="perf-insumo-desc" type="text" placeholder="Ej: Broca 115mm T38" style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.76rem;">
+                    </div>
+                    <div>
+                        <label style="font-size:0.64rem;color:var(--text-dim);">Costo ($)</label>
+                        <input id="perf-insumo-costo" type="number" placeholder="0" style="width:100%;padding:4px 6px;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.78rem;">
+                    </div>
+                    <button onclick="registrarInsumoPerforadora()" style="background:var(--success,#22c55e);color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:0.8rem;cursor:pointer;font-weight:700;">+</button>
+                </div>
+                <div style="max-height:130px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;">
+                    <table class="ranking-table" style="width:100%;font-size:0.76rem;">
+                        <thead><tr><th>Tipo</th><th>Descripcion</th><th>Costo</th><th>Mes</th><th></th></tr></thead>
+                        <tbody id="perf-insumos-body">
+                            <tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:10px;">Sin insumos registrados</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div style="margin-top:6px;display:flex;justify-content:space-between;align-items:center;">
+                    <span style="font-size:0.75rem;color:var(--text-dim);">Total insumos este mes:</span>
+                    <strong id="perf-insumos-total" style="color:var(--danger);font-size:1rem;">$ 0</strong>
+                </div>
+            </div>
+        </div>
+
+        <!-- ANALIZADOR IA VOLADURA -->
+        <div class="chart-card">
+            <div class="chart-header">
+                <span><i class="ph-fill ph-brain" style="color:var(--accent);"></i> Analizador IA — Optimizacion de Voladura</span>
+                <button onclick="analizarVoladuraConIA()" id="btn-analizar-vol" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:0.78rem;cursor:pointer;font-weight:700;">Analizar</button>
+            </div>
+            <p style="font-size:0.74rem;color:var(--text-dim);margin:8px 0 10px;">Revisa las ultimas voladuras registradas y recibi sugerencias de mejora para granito de Villa Monica.</p>
+            <div id="ia-voladura-resultado" style="min-height:140px;max-height:280px;overflow-y:auto;background:rgba(0,0,0,0.15);border-radius:8px;padding:12px;font-size:0.8rem;line-height:1.6;color:var(--text-main);">
+                <span style="color:var(--text-dim);">Carga al menos una voladura y presiona <b>Analizar</b>.</span>
+            </div>
+        </div>
+    </div>
+
+</section>
+
+<!-- ======== MANTENIMIENTO FIJO ======== -->
+<section id="mantenimiento-fijo" class="view">
+    <div class="smart-summary-container"><div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;color:var(--accent);font-size:0.75rem;font-weight:700;text-transform:uppercase;"><i class="ph-fill ph-sparkle"></i> Resumen del Sector</div><p class="smart-text" style="font-size:0.95rem;color:var(--text-main);">Analizando...</p></div>
+
+    <!-- Panel alertas predictivas desgaste -->
+    <div class="chart-card" style="margin-bottom:1.5rem;border-left:3px solid var(--warning);">
+        <div class="chart-header">
+            <span><i class="ph-fill ph-brain" style="color:var(--warning);"></i> Alertas Predictivas — Análisis de Desgaste</span>
+            <button onclick="analizarAlertasDesgaste()" style="padding:5px 12px;font-size:0.78rem;display:flex;align-items:center;gap:5px;">
+                <i class="ph-bold ph-arrows-clockwise"></i> Actualizar
+            </button>
+        </div>
+        <div id="alertas-desgaste-voladuras">
+            <div style="text-align:center;padding:15px;color:var(--text-dim);font-size:0.82rem;">
+                Registrá al menos 2 cambios de pieza para activar el análisis predictivo.
+            </div>
+        </div>
+    </div>
+    <div class="grid-main">
+        <div class="chart-card">
+            <div class="chart-header">
+                <span><i class="ph-fill ph-clock" style="color:var(--accent);"></i> Horas de Trabajo por Equipo</span>
+            </div>
+            <div style="position:relative;height:220px;width:100%;"><canvas id="chart-horas-maquinas"></canvas></div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-header">
+                <span><i class="ph-fill ph-wrench" style="color:var(--success);"></i> Distribución de Mantenimiento</span>
+            </div>
+            <div style="position:relative;height:220px;width:100%;"><canvas id="chart-maint-type"></canvas><div id="maint-no-data" style="position:absolute;display:none;color:var(--text-dim);font-size:0.85rem;text-align:center;top:50%;left:50%;transform:translate(-50%,-50%);">Sin datos este mes</div></div>
+        </div>
+        <div class="chart-card">
+            <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:1rem;">
+                <button type="button" onclick="sincronizarOneDrive()" style="background:#0078d4;color:white;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:0.8rem;font-weight:bold;display:flex;align-items:center;gap:5px;border:none;"><i class="ph-bold ph-cloud-arrow-down"></i> Sincronizar con OneDrive</button>
+                <div style="display:flex;justify-content:space-between;align-items:center;" onclick="toggleSection('form-maint-rep')" style="cursor:pointer;user-select:none;">
+                    <h3 style="font-size:1rem;margin:0;">Reporte Manual <span id="caret-form-maint-rep" style="font-size:0.78rem;color:var(--text-dim);">▸</span></h3>
+                    <button type="button" onclick="togglePasteArea()" style="background:var(--success);color:white;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:0.8rem;font-weight:bold;display:flex;align-items:center;gap:5px;border:none;"><i class="ph-bold ph-clipboard"></i> Pegar desde Excel</button>
+                </div>
+                <div id="content-form-maint-rep" style="display:none;"><div id="paste-container" style="display:none;background:rgba(0,0,0,0.2);padding:15px;border-radius:8px;border:1px dashed var(--success);">
+                    <small style="color:var(--text-dim);display:block;margin-bottom:8px;">Copiá las filas de Excel (con títulos) y pegalas acá:</small>
+                    <textarea id="excel-text" placeholder="Pegar texto acá..." style="width:100%;height:120px;background:var(--bg-body);color:var(--text-main);border:1px solid var(--border)!important;border-radius:6px;padding:10px;font-family:monospace;resize:vertical;"></textarea>
+                    <button type="button" onclick="procesarTextoExcel()" style="margin-top:10px;background:var(--success);color:white;padding:8px 15px;border-radius:6px;border:none;cursor:pointer;width:100%;font-weight:bold;">Procesar Datos</button>
+                </div>
+            </div>
+            <form id="form-maint">
+                <input type="date" id="maint-date" required>
+                <input type="text" id="maint-eq" placeholder="Ej: Komatsu PC800" required>
+                <select id="maint-type"><option value="Preventivo">Preventivo</option><option value="Correctivo">Correctivo</option></select>
+                <div style="display:flex;gap:10px;"><input type="number" id="maint-cost" placeholder="Costo (USD)" style="flex:1;width:auto;margin-bottom:0;" required><input type="number" id="maint-hrs" placeholder="Horas Parado" style="flex:1;width:auto;margin-bottom:0;" required></div>
+                <button type="submit" style="margin-top:10px;">Cargar Reporte</button>
+            </form>
+</div><!-- /form-maint-rep -->
+        </div>
+    </div>
+    <div class="chart-card" style="margin-top:1.5rem;border-top:2px solid var(--warning);">
+        <div class="chart-header"><span><i class="ph-fill ph-warning-circle" style="color:var(--warning);"></i> Ranking de Fallas Recurrentes</span></div>
+        <div id="maint-ai-insight" style="margin:10px;padding:12px;border-radius:8px;font-size:0.85rem;display:none;align-items:flex-start;gap:10px;"></div>
+        <div style="max-height:250px;overflow-y:auto;"><table class="ranking-table"><thead><tr><th>Ubicación/Equipo</th><th>Falla/Tarea</th><th>Frecuencia</th></tr></thead><tbody id="maint-recurrent-body"></tbody></table></div>
+    </div>
+    <!-- DESGASTE - MÓDULO COMPLETO CON IMÁGENES REALES -->
+    <div class="chart-card" style="border-top:4px solid var(--warning);margin-top:2rem;">
+        <div class="chart-header">
+            <div style="display:flex;align-items:center;gap:1rem;">
+                <span>Monitor de Desgaste Dinámico</span>
+                <button onclick="exportarDesgasteCSV()" style="padding:6px 15px;font-size:0.8rem;background:var(--success);display:flex;align-items:center;gap:5px;"><i class="ph ph-export"></i> Exportar .CSV</button>
+            </div>
+            <div style="display:flex;gap:1rem;">
+                <select id="selector-ubicacion" style="width:auto;margin-bottom:0;" onchange="cambiarUbicacion()">
+                    <option value="pozo">Pozo</option>
+                    <option value="planta1">Planta N°1</option>
+                    <option value="planta2">Planta N°2</option>
+                </select>
+                <select id="selector-trituradora" style="width:auto;margin-bottom:0;" onchange="cambiarTrituradora()"></select>
+            </div>
+        </div>
+        <div style="display:flex;gap:2rem;align-items:flex-start;padding:1rem;flex-wrap:wrap;">
+            <div id="wear-image-wrapper" style="flex:2;min-width:320px;position:relative;text-align:center;">
+                <div id="wear-img-placeholder" style="display:flex;align-items:center;justify-content:center;height:300px;border:2px dashed var(--border);border-radius:10px;color:var(--text-dim);font-size:0.9rem;flex-direction:column;gap:10px;">
+                    <i class="ph ph-image" style="font-size:3rem;opacity:0.3;"></i>
+                    Seleccioná una máquina para ver el diagrama de desgaste
+                </div>
+                <img id="wear-main-img" src="" alt="Trituradora" style="width:100%;max-width:780px;border-radius:10px;border:1px solid var(--border);display:block;margin:0 auto;">
+                <div id="wear-zones-container" style="position:absolute;top:0;left:0;width:100%;height:100%;"></div>
+            </div>
+            <div class="kpi-card" style="flex:1;padding:1.5rem;min-width:260px;cursor:default;position:relative;align-self:flex-start;">
+                <div id="wear-machine-title" style="font-size:0.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;"></div>
+                <h3 id="pieza-titulo" style="margin-bottom:0.5rem;font-size:1rem;">Seleccioná una zona</h3>
+                <p style="font-size:0.72rem;color:var(--text-dim);margin-bottom:1rem;">Hacé clic sobre las zonas coloreadas</p>
+                <div id="pieza-info"><p style="color:var(--text-dim);font-size:0.85rem;">Pasá el mouse o hacé clic sobre las piezas destacadas.</p></div>
+                <div id="cambio-pieza-box" style="display:none;margin-top:1rem;padding:12px;background:var(--bg-body);border-radius:8px;border:1px solid rgba(128,128,128,0.2);">
+                    <h4 style="font-size:0.85rem;margin-bottom:10px;color:var(--warning);">⚙️ Registrar Recambio</h4>
+                    <form id="form-cambio-pieza" style="display:flex;flex-direction:column;gap:8px;">
+                        <label style="font-size:0.72rem;color:var(--text-dim);">Fecha de Colocación:</label>
+                        <input type="date" id="cp-fecha" required>
+                        <input type="text" id="cp-marca" placeholder="Marca (Ej: Metso Original)" required>
+                        <input type="number" id="cp-vida" placeholder="Vida útil técnica (Hs)" required>
+                        <button type="submit" style="padding:8px;font-size:0.8rem;background:var(--success);">Guardar y Reiniciar Contador</button>
+                    </form>
+                </div>
+                <div id="wear-legend" style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--border);"></div>
+                <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);">
+                    <div style="font-size:0.7rem;color:var(--text-dim);font-weight:700;text-transform:uppercase;margin-bottom:8px;">Resumen Horas por Máquina</div>
+                    <div id="panel-resumen-horas"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ======== FLOTA LIVIANA ======== -->
+<section id="mantenimiento-movil" class="view">
+    <div class="smart-summary-container"><div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;color:var(--accent);font-size:0.75rem;font-weight:700;text-transform:uppercase;"><i class="ph-fill ph-sparkle"></i> Resumen del Sector</div><p class="smart-text" style="font-size:0.95rem;color:var(--text-main);">Analizando...</p></div>
+
+    <!-- Panel alertas predictivas desgaste -->
+    <div class="chart-card" style="margin-bottom:1.5rem;border-left:3px solid var(--warning);">
+        <div class="chart-header">
+            <span><i class="ph-fill ph-brain" style="color:var(--warning);"></i> Alertas Predictivas — Análisis de Desgaste</span>
+            <button onclick="analizarAlertasDesgaste()" style="padding:5px 12px;font-size:0.78rem;display:flex;align-items:center;gap:5px;">
+                <i class="ph-bold ph-arrows-clockwise"></i> Actualizar
+            </button>
+        </div>
+        <div id="alertas-desgaste-mant">
+            <div style="text-align:center;padding:15px;color:var(--text-dim);font-size:0.82rem;">
+                Registrá al menos 2 cambios de pieza para activar el análisis predictivo.
+            </div>
+        </div>
+    </div>
+    <!-- IMPORTAR EXCEL -->
+    <div class="chart-card" style="margin-bottom:2rem;border:1px dashed var(--accent);background:rgba(59,130,246,0.05);">
+        <div class="chart-header" onclick="toggleSection('import-flota')" style="cursor:pointer;user-select:none;"><span><i class="ph-fill ph-file-xls"></i> Importar Gastos de Camionetas (Excel / CSV)</span> <span id="caret-import-flota" style="font-size:0.78rem;color:var(--text-dim);margin-left:auto;transition:transform 0.2s;">▸</span></div>
+<div id="content-import-flota" style="display:none;">
+        <div style="margin-top:1rem;">
+            <label class="upload-zone" id="upload-zone-flota" for="file-flota" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="event.preventDefault();this.classList.remove('dragover');document.getElementById('file-flota').files=event.dataTransfer.files;procesarExcelFlotaLiviana();">
+                <input type="file" id="file-flota" accept=".xlsx,.xls,.csv" onchange="procesarExcelFlotaLiviana(this.files[0])">
+                <i class="ph-fill ph-upload-simple" style="font-size:2rem;color:var(--accent);margin-bottom:10px;display:block;"></i>
+                <b style="color:var(--text-main);">Arrastrá tu archivo o hacé clic para seleccionar</b><br>
+                <small style="color:var(--text-dim);">Formatos: .xlsx, .xls, .csv — Columnas: UBICACIÓN TÉCNICA | DESCRIPCIÓN | VALOR | MES</small>
+            </label>
+        </div>
+        <div id="flota-import-status" style="display:none;padding:10px 14px;border-radius:8px;font-size:0.82rem;font-weight:600;margin-top:0.5rem;border:1px solid transparent;"></div>
+        <div id="expedientes-flota" style="margin-top:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;"></div>
+    
+</div><!-- end collapse import-flota --></div>
+    <div class="grid-main" style="grid-template-columns:1fr 1fr;margin-bottom:2rem;">
+        <div class="chart-card">
+            <div class="chart-header" onclick="toggleSection('carga-comb')" style="cursor:pointer;user-select:none;"><span><i class="ph-fill ph-gas-pump"></i> Carga Mensual de Combustible</span> <span id="caret-carga-comb" style="font-size:0.78rem;color:var(--text-dim);margin-left:auto;transition:transform 0.2s;">▸</span></div>
+<div id="content-carga-comb" style="display:none;">
+            <form id="form-combustible-manual" style="margin-top:1rem;display:flex;flex-direction:column;gap:10px;">
+                <label style="color:var(--text-dim);font-size:0.8rem;display:block;">Vehículo / Equipo</label>
+                <select id="input-flota-vehiculo" required>
+                    <option value="Amarok N° 19">Amarok N° 19</option><option value="Ford Ranger N° 9">Ford Ranger N° 9</option><option value="Ford Ranger N° 25">Ford Ranger N° 25</option><option value="Fiat Strada N° 20">Fiat Strada N° 20</option><option value="Peugeot Partner N° 21">Peugeot Partner N° 21</option>
+                </select>
+                <label style="color:var(--text-dim);font-size:0.8rem;display:block;">Litros Consumidos en el Mes</label>
+                <input type="number" id="input-flota-litros" placeholder="Ej: 450" required>
+                <button type="submit" style="background:var(--accent);color:#fff;font-weight:bold;padding:12px;border:none;border-radius:6px;cursor:pointer;">Registrar Consumo</button>
+            </form>
+        
+</div><!-- end collapse carga-comb --></div>
+        <div class="chart-card">
+            <div class="chart-header"><span><i class="ph-fill ph-gas-pump" style="color:var(--warning);"></i> Combustible por Unidad (Lts)</span></div>
+            <div id="chart-flota-combustible-wrap" style="min-height:200px;position:relative;">
+                <canvas id="chart-flota-combustible"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="grid-main">
+        <div class="chart-card">
+            <div class="chart-header"><span>Seguimiento de Flota Liviana</span></div>
+            <table class="ranking-table"><thead><tr><th>Unidad/Taller</th><th>KM Actual</th><th>Próx. Service</th><th>Estado</th></tr></thead><tbody id="flota-table-body"></tbody></table>
+        </div>
+        <div class="chart-card">
+            <div class="chart-header" onclick="toggleSection('orden-trabajo')" style="cursor:pointer;user-select:none;"><span>Orden de Trabajo Externa</span> <span id="caret-orden-trabajo" style="font-size:0.78rem;color:var(--text-dim);margin-left:auto;transition:transform 0.2s;">▸</span></div>
+<div id="content-orden-trabajo" style="display:none;">
+            <form id="form-mante-externo">
+                <select id="ext-unidad" required><option value="" disabled selected>Seleccionar Camioneta...</option></select>
+                <input type="text" id="ext-taller" placeholder="Nombre del Taller" required>
+                <input type="text" id="ext-tarea" placeholder="Tarea (Ej: Cambio de Embrague)" required>
+                <div style="display:flex;gap:10px;"><input type="number" id="ext-costo" placeholder="Costo (USD)" style="flex:1;width:auto;margin-bottom:0;" required><input type="number" id="ext-km" placeholder="KM Actual" style="flex:1;width:auto;margin-bottom:0;" required></div>
+                <input type="text" id="ext-factura" placeholder="Nro de Factura / Remito" style="margin-top:8px;">
+                <button type="submit" style="margin-top:5px;">Registrar Arreglo Externo</button>
+            </form>
+        
+</div><!-- end collapse orden-trabajo --></div>
+        <div class="chart-card" style="border-top:2px solid var(--success);">
+            <div class="chart-header" onclick="toggleSection('alta-vehiculo')" style="cursor:pointer;user-select:none;">Añadir Nueva Unidad <span id="caret-alta-vehiculo" style="font-size:0.78rem;color:var(--text-dim);margin-left:auto;transition:transform 0.2s;">▸</span></div>
+<div id="content-alta-vehiculo" style="display:none;">
+            <form id="form-alta-vehiculo">
+                <input type="text" id="alta-nombre" placeholder="Nombre/Interno (Ej: Hilux 15)" required>
+                <div style="display:flex;gap:10px;"><input type="number" id="alta-km" placeholder="KM Inicial" style="flex:1;width:auto;margin-bottom:0;" required><input type="number" id="alta-service" placeholder="Próx. Service" style="flex:1;width:auto;margin-bottom:0;" required></div>
+                <input type="text" id="alta-taller" placeholder="Taller Habitual" style="margin-top:8px;">
+                <button type="submit" style="background:var(--success);margin-top:5px;">+ Registrar Vehículo</button>
+            </form>
+        
+</div><!-- end collapse alta-vehiculo --></div>
+    </div>
+    <div class="grid-main" style="grid-template-columns:1fr 1fr;margin-top:1.5rem;">
+        <div class="chart-card"><div class="chart-header"><span><i class="ph-fill ph-chart-bar-horizontal" style="color:var(--danger);"></i> Ranking Gastos por Unidad</span><span id="flota-liviana-mes-label" style="font-size:0.75rem;color:var(--text-dim);"></span></div><div id="chart-gastos-movil-wrap" style="height:320px;position:relative;"><canvas id="chart-gastos-movil"></canvas></div></div>
+        <div class="chart-card">
+            <div class="chart-header" style="display:flex;justify-content:space-between;align-items:center;">
+                <span>Expediente Técnico</span>
+                <select id="select-expediente" style="padding:4px 8px;font-size:0.8rem;width:auto;margin-bottom:0;"></select>
+            </div>
+            <div style="margin-bottom:10px;font-size:0.85rem;color:var(--text-dim);">Gasto Total Histórico: <strong id="expediente-total-usd" style="color:var(--danger);font-size:1.2rem;">$ 0</strong></div>
+            <div style="max-height:180px;overflow-y:auto;"><table class="ranking-table"><thead><tr><th>Fecha</th><th>Tarea/Taller</th><th>Costo</th></tr></thead><tbody id="expediente-body"></tbody></table></div>
+        </div>
+    </div>
+</section>
+
+<!-- ======== FLOTA PESADA ======== -->
+<section id="mantenimiento-pesado" class="view">
+    <div class="smart-summary-container"><p style="font-size:0.95rem;color:var(--text-main);">Control de Flota Pesada — Costos y Paradas por Equipo</p></div>
+
+    <!-- IMPORTAR EXCEL FLOTA PESADA — LECTOR GUERRICO (RP.MOV-VM) -->
+    <div class="chart-card" style="margin-bottom:2rem;border:1px dashed var(--warning);background:rgba(245,158,11,0.04);">
+        <div class="chart-header" style="flex-wrap:wrap;gap:10px;">
+            <span><i class="ph-fill ph-file-xls" style="color:var(--warning);"></i> Importar Compras Mensuales — Gastos por Equipo</span>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                <div style="display:flex;align-items:center;gap:6px;font-size:0.78rem;color:var(--text-dim);">
+                    <span style="font-weight:700;">Filtrar por:</span>
+                    <select id="pesada-filtro-costeo" style="width:auto;margin-bottom:0;padding:4px 8px;font-size:0.78rem;border-radius:5px;" onchange="if(window._lastPesadaFile) procesarExcelFlotaPesada(window._lastPesadaFile)">
+                        <option value="RP.MOV-VM">RP.MOV-VM — Rep. Móvil</option>
+                        <option value="RP.EF-VM">RP.EF-VM — Rep. Fijo</option>
+                        <option value="LUB-VM">LUB-VM — Lubricantes</option>
+                        <option value="MO.MAT-VM">MO.MAT-VM — Mano de Obra</option>
+                        <option value="TODOS">TODOS los equipos</option>
+                    </select>
+                </div>
+                <button type="button" onclick="limpiarImportPesada()" style="background:rgba(239,68,68,0.1);color:var(--danger);border:1px solid rgba(239,68,68,0.25);padding:5px 12px;font-size:0.75rem;border-radius:6px;">
+                    <i class="ph-bold ph-trash"></i> Limpiar
+                </button>
+            </div>
+        </div>
+        <label class="upload-zone" id="upload-zone-pesada" for="file-pesada"
+            ondragover="event.preventDefault();this.classList.add('dragover')"
+            ondragleave="this.classList.remove('dragover')"
+            ondrop="event.preventDefault();this.classList.remove('dragover');document.getElementById('file-pesada').files=event.dataTransfer.files;procesarExcelFlotaPesada();">
+            <input type="file" id="file-pesada" accept=".xlsx,.xls,.csv" onchange="procesarExcelFlotaPesada()">
+            <i class="ph-fill ph-upload-simple" style="font-size:1.8rem;color:var(--warning);margin-bottom:8px;display:block;"></i>
+            <b style="color:var(--text-main);">Arrastrá el archivo "Compras_mensuales_Año_2026.xls" o hacé clic</b><br>
+            <small style="color:var(--text-dim);">Detecta automáticamente la hoja del mes activo · Filtra por Descripción Costeo · Agrupa por Ubicación Técnica</small>
+        </label>
+
+        <!-- STATUS BAR -->
+        <div id="pesada-status" style="display:none;margin-top:12px;padding:10px 14px;border-radius:8px;font-size:0.82rem;font-weight:700;display:flex;align-items:center;gap:10px;"></div>
+
+        <!-- EXPEDIENTES POR EQUIPO -->
+        <div id="pesada-import-preview" style="margin-top:12px;display:none;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><span style="font-size:0.82rem;font-weight:700;color:var(--text-main);">Vista previa</span></div>
+            <div style="max-height:140px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;"><table class="ranking-table" style="width:100%;"><thead><tr><th>Fecha</th><th>Equipo</th><th>Tarea</th><th>Costo</th></tr></thead><tbody id="pesada-import-tbody"></tbody></table></div>
+        </div>
+        <div id="pesada-expedientes-grid" style="margin-top:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;"></div>
+    </div>
+
+    <div class="grid-main">
+        <div class="chart-card"><div class="chart-header" id="flota-pesada-header"><span>Estado de Flota — <span id="flota-mes-label" style="color:var(--warning);"></span></span></div><table class="ranking-table"><thead><tr><th>Equipo</th><th>Paradas</th><th>Inversión Total</th></tr></thead><tbody id="flota-pesada-table-body"></tbody></table></div>
+        <div class="chart-card"><div class="chart-header" onclick="toggleSection('gasto-pesada')" style="cursor:pointer;user-select:none;"><span>Registrar Gasto de Equipo</span> <span id="caret-gasto-pesada" style="font-size:0.78rem;color:var(--text-dim);margin-left:auto;transition:transform 0.2s;">▸</span></div>
+<div id="content-gasto-pesada" style="display:none;">
+            <form id="form-mante-pesada">
+                <select id="pes-unidad" required><option value="" disabled selected>Seleccionar Equipo...</option></select>
+                <input type="text" id="pes-tarea" placeholder="Descripción de repuestos/arreglo" required>
+                <input type="number" id="pes-costo" placeholder="Costo Total (USD)" required>
+                <button type="submit">Cargar Gasto al Historial</button>
+            </form>
+        
+</div><!-- end collapse gasto-pesada --></div>
+        <div class="chart-card" style="border-top:2px solid var(--warning);"><div class="chart-header" onclick="toggleSection('alta-pesada')" style="cursor:pointer;user-select:none;">Añadir Nuevo Equipo <span id="caret-alta-pesada" style="font-size:0.78rem;color:var(--text-dim);">▸</span></div>
+<div id="content-alta-pesada" style="display:none;">
+            <form id="form-alta-pesada"><input type="text" id="alta-nombre-pes" placeholder="Equipo (Ej: Cargadora WA470)" required><button type="submit" style="background:var(--warning);margin-top:5px;">+ Registrar Equipo</button></form>
+</div><!-- /alta-pesada -->
+        </div>
+    </div>
+    <div class="grid-main" style="grid-template-columns:1fr 1fr;margin-top:1.5rem;">
+        <div class="chart-card"><div class="chart-header"><span>Ranking de Gastos por Equipo (Histórico)</span></div><canvas id="chart-gastos-pesada" style="max-height:250px;"></canvas></div>
+        <div class="chart-card">
+            <div class="chart-header" style="display:flex;justify-content:space-between;align-items:center;">
+                <span>Expediente Técnico Pesado</span>
+                <select id="select-expediente-pesado" style="padding:4px 8px;font-size:0.8rem;width:auto;margin-bottom:0;"></select>
+            </div>
+            <div style="margin-bottom:10px;font-size:0.85rem;color:var(--text-dim);">Inversión Histórica: <strong id="expediente-total-usd-pesado" style="color:var(--warning);font-size:1.2rem;">$ 0</strong></div>
+            <div style="max-height:180px;overflow-y:auto;"><table class="ranking-table"><thead><tr><th>Fecha</th><th>Componente/Arreglo</th><th>Costo</th></tr></thead><tbody id="expediente-body-pesado"></tbody></table></div>
+        </div>
+    </div>
+</section>
+
+<!-- ======== CONFIGURACIÓN ======== -->
+<section id="configuracion" class="view">
+    <div class="smart-summary-container" style="border-left-color:var(--text-dim);background:rgba(148,163,184,0.05);margin-bottom:2rem;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+        <p style="font-size:0.9rem;color:var(--text-dim);">⚙️ Panel de administración — Cambios aquí afectan a todo el sistema.</p>
+        <button onclick="limpiarDatosDemo()" style="background:rgba(248,113,113,0.15);color:var(--danger);border:1px solid rgba(248,113,113,0.3);padding:6px 14px;font-size:0.78rem;display:flex;align-items:center;gap:6px;">
+            <i class="ph-bold ph-trash"></i> Limpiar todos los datos
+        </button>
+    </div>
+    <p style="display:none;font-size:0.9rem;color:var(--text-dim);">⚙️ Panel de administración — Cambios aquí afectan a todo el sistema. Sólo administradores.</p>
+    </div>
+    <div class="grid-main" style="grid-template-columns:1fr 1fr;">
+        <div class="chart-card" style="margin-bottom:1.5rem;border-left:3px solid var(--accent);">
+        <div class="chart-header">
+            <span><i class="ph-fill ph-key" style="color:var(--accent);"></i> API Key de Gemini (Gratis)</span>
+            <button onclick="guardarApiKey()" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:5px 14px;font-size:0.78rem;cursor:pointer;font-weight:700;">Guardar</button>
+        </div>
+        <p style="font-size:0.78rem;color:var(--text-dim);margin:8px 0 12px;">
+            Necesaria para el Chatbot IA y Analizadores. Obtené tu clave gratuita en <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--accent);text-decoration:underline;">aistudio.google.com</a>
+        </p>
+        <div style="display:flex;gap:10px;align-items:center;">
+            <input id="config-api-key" type="password" placeholder="AIzaSy..." 
+                style="flex:1;padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.85rem;font-family:monospace;">
+            <button onclick="toggleApiKeyVisibility()" style="background:transparent;border:1px solid var(--border);border-radius:6px;padding:7px 10px;cursor:pointer;color:var(--text-dim);">👁</button>
+        </div>
+        <div id="api-key-status" style="margin-top:8px;font-size:0.75rem;color:var(--text-dim);"></div>
+    </div>
+
+    <div class="chart-card">
+            <div class="chart-header"><span><i class="ph-fill ph-users"></i> Nómina de Operarios</span></div>
+            <form id="form-add-worker" style="display:flex;gap:10px;margin-bottom:1rem;"><input type="text" id="new-worker-name" placeholder="Nombre y Apellido" style="flex:1;margin-bottom:0;" required><button type="submit" style="padding:10px 15px;">Añadir</button></form>
+            <div style="max-height:300px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;"><table class="ranking-table"><tbody id="config-workers-body"></tbody></table></div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-header"><span><i class="ph-fill ph-target"></i> Metas de Producción</span></div>
+            <p style="font-size:0.8rem;color:var(--text-dim);margin-bottom:1rem;">Metas que definen el 100% en los velocímetros y calculan la pérdida económica por ineficiencia.</p>
+            <form id="form-update-targets" style="display:flex;flex-direction:column;gap:10px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(0,0,0,0.2);padding:10px;border-radius:6px;"><label style="font-weight:bold;">Planta Primaria</label><div style="display:flex;align-items:center;gap:5px;"><input type="number" id="target-primaria" style="width:100px;text-align:center;margin-bottom:0;" required> <small style="color:var(--text-dim);">Tn/h</small></div></div>
+                <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(0,0,0,0.2);padding:10px;border-radius:6px;"><label style="font-weight:bold;">Planta 1</label><div style="display:flex;align-items:center;gap:5px;"><input type="number" id="target-planta1" style="width:100px;text-align:center;margin-bottom:0;" required> <small style="color:var(--text-dim);">Tn/h</small></div></div>
+                <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(0,0,0,0.2);padding:10px;border-radius:6px;"><label style="font-weight:bold;">Planta 2</label><div style="display:flex;align-items:center;gap:5px;"><input type="number" id="target-planta2" style="width:100px;text-align:center;margin-bottom:0;" required> <small style="color:var(--text-dim);">Tn/h</small></div></div>
+                <button type="submit" style="background:var(--success);margin-top:10px;">Guardar Metas</button>
+            </form>
+        </div>
+        <div class="chart-card">
+            <div class="chart-header"><span><i class="ph-fill ph-tag"></i> Catálogo de Productos</span></div>
+            <form id="form-add-producto" style="display:flex;gap:10px;margin-bottom:1rem;">
+                <input type="text" id="new-prod-name" placeholder="Material (Ej: Piedra 6-20)" style="flex:2;margin-bottom:0;" required>
+                <div style="display:flex;align-items:center;gap:5px;flex:1;background:rgba(0,0,0,0.1);border:1px solid var(--border)!important;border-radius:6px;padding:0 8px;"><span style="color:var(--success);font-size:0.8rem;font-weight:bold;">USD</span><input type="number" id="new-prod-price" placeholder="Precio" style="border:none!important;background:transparent!important;padding:8px 0;margin-bottom:0;width:100%;" step="0.1" required></div>
+                <button type="submit" style="padding:10px;background:var(--accent);">Añadir</button>
+            </form>
+            <div style="max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;margin-bottom:1rem;"><table class="ranking-table"><tbody id="config-productos-body"></tbody></table></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(0,0,0,0.05);padding:10px;border-radius:6px;border:1px solid var(--border);">
+                <label style="font-weight:bold;font-size:0.85rem;">Precio Promedio Mix</label>
+                <div style="display:flex;align-items:center;gap:5px;"><span style="color:var(--success);font-weight:bold;">USD</span><input type="number" id="config-valor-tn" style="width:70px;text-align:center;margin-bottom:0;" step="0.1" required></div>
+            </div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-header"><span><i class="ph-fill ph-map-pin"></i> Frentes de Trabajo (Mapa)</span></div>
+            <p style="font-size:0.8rem;color:var(--text-dim);margin-bottom:1rem;">Renombrá o eliminá los marcadores del pozo.</p>
+            <div style="max-height:250px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;"><table class="ranking-table"><tbody id="config-zonas-body"></tbody></table></div>
+        </div>
+        <div class="chart-card" style="border-top:2px solid var(--purple);grid-column:1/-1;">
+            <div class="chart-header"><span><i class="ph-fill ph-puzzle-piece"></i> Gestor de Módulos</span></div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:15px;">
+                <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;background:rgba(0,0,0,0.1);padding:15px;border-radius:8px;border:1px solid var(--border);"><input type="checkbox" id="toggle-mod-comercial" style="width:20px;height:20px;margin-top:2px;margin-bottom:0;"><div><b>Módulo Comercial (Ventas B2B)</b><br><small style="color:var(--text-dim);">Cruza despachos con facturación.</small></div></label>
+                <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;background:rgba(0,0,0,0.1);padding:15px;border-radius:8px;border:1px solid var(--border);"><input type="checkbox" id="toggle-mod-rrhh" style="width:20px;height:20px;margin-top:2px;margin-bottom:0;"><div><b>Módulo RRHH y Novedades</b><br><small style="color:var(--text-dim);">Legajos, vencimientos carnet, presentismo, horas extras, accidentes, contacto de emergencia.</small></div></label>
+                <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;background:rgba(0,0,0,0.1);padding:15px;border-radius:8px;border:1px solid var(--border);"><input type="checkbox" id="toggle-mod-agro" style="width:20px;height:20px;margin-top:2px;margin-bottom:0;"><div><b style="color:var(--success);">Unidad Agropecuaria</b><br><small style="color:var(--text-dim);">Gestión de ganadería/avicultura.</small></div></label>
+                <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;background:rgba(0,0,0,0.1);padding:15px;border-radius:8px;border:1px solid var(--border);"><input type="checkbox" id="toggle-mod-automatizacion" style="width:20px;height:20px;margin-top:2px;margin-bottom:0;"><div><b style="color:var(--warning);">Alertas y Reportes Automáticos</b><br><small style="color:var(--text-dim);">Generación de PDF al cierre de turno.</small></div></label>
+            </div>
+        </div>
+        <div class="chart-card" style="border-top:2px solid var(--danger);grid-column:1/-1;">
+            <div class="chart-header" style="display:flex;justify-content:space-between;align-items:center;">
+                <span><i class="ph-fill ph-database"></i> Auditoría y Corrección de Datos</span>
+                <select id="db-selector" style="padding:6px 10px;font-size:0.85rem;width:auto;margin-bottom:0;cursor:pointer;">
+                    <option value="produccion">Partes de Producción</option>
+                    <option value="voladuras">Historial de Voladuras</option>
+                    <option value="consumos">Consumos Mensuales</option>
+                    <option value="despacho">Despachos (Balanza)</option>
+                    <option value="mantenimientoExterno">Gastos Flota Liviana</option>
+                    <option value="mantenimientoPesado">Gastos Flota Pesada</option>
+                </select>
+            </div>
+            <p style="font-size:0.8rem;color:var(--text-dim);margin-bottom:1rem;">Si alguien cargó un dato erróneo, eliminalo para recalibrar todos los gráficos.</p>
+            <div style="max-height:300px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;"><table class="ranking-table"><thead><tr><th>Fecha</th><th>Detalle</th><th>Impacto</th><th>Acción</th></tr></thead><tbody id="db-table-body"></tbody></table></div>
+        </div>
+    </div>
+</section>
+
+
+    <!-- ══════════ PESÓMETROS / BALANZAS DE CINTA ══════════ -->
+    <section id="pesometros" class="view">
+
+        <!-- KPIs por cinta -->
+        <div id="peso-kpis" style="display:grid;grid-template-columns:repeat(5,1fr);gap:1.2rem;margin-bottom:1.5rem;"></div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem;">
+
+            <!-- Importador CSV -->
+            <div class="chart-card" style="border:1px dashed var(--accent);background:rgba(59,130,246,0.03);">
+                <div class="chart-header">
+                    <span><i class="ph-fill ph-file-csv" style="color:var(--accent);"></i> Importar Lecturas CSV</span>
+                    <button type="button" onclick="limpiarPesometros()"
+                        style="background:rgba(248,113,113,0.1);color:var(--danger);border:1px solid rgba(248,113,113,0.3);padding:5px 12px;font-size:0.75rem;">
+                        <i class="ph-bold ph-trash"></i> Limpiar
+                    </button>
+                </div>
+                <label class="upload-zone" for="file-pesometros"
+                    ondragover="event.preventDefault();this.classList.add('dragover')"
+                    ondragleave="this.classList.remove('dragover')"
+                    ondrop="event.preventDefault();this.classList.remove('dragover');document.getElementById('file-pesometros').files=event.dataTransfer.files;procesarCSVPesometros();">
+                    <input type="file" id="file-pesometros" accept=".csv,.CSV" onchange="procesarCSVPesometros()">
+                    <i class="ph-fill ph-upload-simple" style="font-size:1.8rem;color:var(--accent);margin-bottom:8px;display:block;"></i>
+                    <b style="color:var(--text-main);">Arrastrar archivos DAT####.CSV o hacer clic</b><br>
+                    <small style="color:var(--text-dim);">Acepta múltiples archivos del mismo turno · Detecta cintas automáticamente</small>
+                </label>
+                <div id="peso-status" style="display:none;margin-top:10px;padding:10px 14px;border-radius:8px;font-size:0.82rem;font-weight:700;align-items:center;gap:8px;"></div>
+            </div>
+
+            <!-- Resumen del turno -->
+            <div class="chart-card">
+                <div class="chart-header">
+                    <span><i class="ph-fill ph-clock" style="color:var(--warning);"></i> Resumen del Turno Importado</span>
+                    <span id="peso-turno-label" style="font-size:0.78rem;color:var(--text-dim);"></span>
+                </div>
+                <div id="peso-resumen-turno">
+                    <div class="empty-state"><i class="ph-fill ph-scales"></i><p>Importá un CSV para ver el resumen del turno.</p></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabla de lecturas + gráfico evolución -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem;">
+            <div class="chart-card">
+                <div class="chart-header">
+                    <span><i class="ph-fill ph-table" style="color:var(--accent);"></i> Lecturas Importadas</span>
+                    <span id="peso-lecturas-count" style="font-size:0.78rem;color:var(--text-dim);"></span>
+                </div>
+                <div style="max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;">
+                    <table class="ranking-table" style="width:100%;">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th><th>Hora</th>
+                                <th style="color:#34d399;">C25</th>
+                                <th style="color:#60a5fa;">C20</th>
+                                <th style="color:#a78bfa;">C19</th>
+                                <th style="color:#fbbf24;">C13</th>
+                                <th style="color:#f87171;">C3 Prim.</th>
+                            </tr>
+                        </thead>
+                        <tbody id="peso-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-header"><span><i class="ph-fill ph-chart-line" style="color:var(--accent);"></i> Evolución Tn/h por Cinta</span></div>
+                <canvas id="chart-pesometros" style="max-height:280px;"></canvas>
+            </div>
+        </div>
+
+        <!-- Historial mensual -->
+        <div class="chart-card">
+            <div class="chart-header">
+                <span><i class="ph-fill ph-calendar-blank" style="color:var(--purple);"></i> Historial de Turnos — Totales por Cinta</span>
+                <button onclick="exportarPesometrosCSV()" style="padding:6px 14px;font-size:0.78rem;background:var(--success);display:flex;align-items:center;gap:5px;">
+                    <i class="ph ph-download-simple"></i> Exportar CSV
+                </button>
+            </div>
+            <div style="overflow-x:auto;">
+                <table class="ranking-table" style="width:100%;min-width:700px;">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th><th>Hora inicio</th><th>Lecturas</th><th>Duración</th>
+                            <th style="color:#34d399;">C25 Prom/Total</th>
+                            <th style="color:#60a5fa;">C20 Prom/Total</th>
+                            <th style="color:#a78bfa;">C19 Prom/Total</th>
+                            <th style="color:#fbbf24;">C13 Prom/Total</th>
+                            <th style="color:#f87171;">C3 Prim.</th>
+                        </tr>
+                    </thead>
+                    <tbody id="peso-historial-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+
+    </section>
+
+
+    <!-- ══════════ 1. INVENTARIO REPUESTOS ══════════ -->
+    <section id="inventario" class="view">
+        <div id="inv-alertas-banner" style="margin-bottom:1.5rem;"></div>
+        <div style="display:grid;grid-template-columns:2fr 1fr;gap:1.5rem;">
+            <!-- Tabla principal -->
+            <div class="chart-card">
+                <div class="chart-header">
+                    <span><i class="ph-fill ph-package" style="color:var(--warning);"></i> Stock de Repuestos Críticos</span>
+                    <button onclick="abrirModalInventario(null)" style="padding:6px 14px;font-size:0.8rem;display:flex;align-items:center;gap:5px;">
+                        <i class="ph-bold ph-plus"></i> Agregar Ítem
+                    </button>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table class="ranking-table" style="width:100%;">
+                        <thead><tr>
+                            <th>Código</th><th>Descripción</th><th>Máquina</th>
+                            <th>Stock</th><th>Mínimo</th><th>Estado</th><th>Costo USD</th><th></th>
+                        </tr></thead>
+                        <tbody id="inv-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+            <!-- Panel lateral: agregar movimiento + resumen -->
+            <div style="display:flex;flex-direction:column;gap:1.5rem;">
+                <div class="chart-card">
+                    <div class="chart-header"><span><i class="ph-fill ph-arrows-left-right" style="color:var(--accent);"></i> Registrar Movimiento</span></div>
+                    <div style="display:flex;flex-direction:column;gap:10px;">
+                        <select id="inv-mov-item" style="margin-bottom:0;"><option value="">Seleccionar ítem...</option></select>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                            <select id="inv-mov-tipo" style="margin-bottom:0;">
+                                <option value="entrada">📦 Entrada</option>
+                                <option value="salida">🔧 Salida (uso)</option>
+                                <option value="ajuste">✏️ Ajuste</option>
+                            </select>
+                            <input type="number" id="inv-mov-cant" placeholder="Cantidad" min="1" style="margin-bottom:0;">
+                        </div>
+                        <input type="text" id="inv-mov-obs" placeholder="Observación (opcional)" style="margin-bottom:0;">
+                        <button onclick="registrarMovimientoInventario()" style="display:flex;align-items:center;justify-content:center;gap:6px;">
+                            <i class="ph-bold ph-check"></i> Registrar
+                        </button>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-header"><span><i class="ph-fill ph-chart-pie" style="color:var(--purple);"></i> Resumen</span></div>
+                    <div id="inv-resumen"></div>
+                </div>
+            </div>
+        </div>
+        <!-- Historial de movimientos -->
+        <div class="chart-card" style="margin-top:1.5rem;">
+            <div class="chart-header">
+                <span><i class="ph-fill ph-clock-clockwise" style="color:var(--text-dim);"></i> Historial de Movimientos</span>
+                <span id="inv-hist-count" style="font-size:0.78rem;color:var(--text-dim);"></span>
+            </div>
+            <div style="max-height:250px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;">
+                <table class="ranking-table" style="width:100%;">
+                    <thead><tr><th>Fecha</th><th>Ítem</th><th>Tipo</th><th>Cant.</th><th>Stock resultante</th><th>Obs.</th></tr></thead>
+                    <tbody id="inv-hist-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- Modal editar/agregar ítem -->
+    <div id="inv-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;">
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:2rem;width:480px;max-width:95vw;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;">
+                <h3 id="inv-modal-title">Agregar Ítem</h3>
+                <button onclick="cerrarModalInventario()" style="background:transparent;color:var(--text-dim);border:none;font-size:1.2rem;padding:4px;">✕</button>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+                <input type="hidden" id="inv-modal-id">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                    <input type="text" id="inv-modal-codigo" placeholder="Código (ej: HP4-MAN-01)" style="margin-bottom:0;">
+                    <select id="inv-modal-maquina" style="margin-bottom:0;">
+                        <option value="">Máquina...</option>
+                        <option value="alteirac">Altairac</option>
+                        <option value="n1560">Nordberg 1560</option>
+                        <option value="hp400">HP400</option>
+                        <option value="fc44">44FC</option>
+                        <option value="svedala">Svedala</option>
+                        <option value="hp100">HP100</option>
+                        <option value="hp200">HP200</option>
+                        <option value="cuarcita">Cuarcita</option>
+                        <option value="marmol">Mármol</option>
+                        <option value="otro">Otro</option>
+                    </select>
+                </div>
+                <input type="text" id="inv-modal-desc" placeholder="Descripción del repuesto" style="margin-bottom:0;">
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+                    <input type="number" id="inv-modal-stock" placeholder="Stock actual" min="0" style="margin-bottom:0;">
+                    <input type="number" id="inv-modal-minimo" placeholder="Stock mínimo" min="0" value="2" style="margin-bottom:0;">
+                    <input type="number" id="inv-modal-costo" placeholder="Costo USD" min="0" style="margin-bottom:0;">
+                </div>
+                <input type="text" id="inv-modal-proveedor" placeholder="Proveedor" style="margin-bottom:0;">
+                <input type="text" id="inv-modal-obs" placeholder="Observación" style="margin-bottom:0;">
+            </div>
+            <div style="display:flex;gap:8px;margin-top:1.5rem;">
+                <button onclick="guardarItemInventario()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;">
+                    <i class="ph-bold ph-floppy-disk"></i> Guardar
+                </button>
+                <button onclick="cerrarModalInventario()" style="background:rgba(128,128,128,0.15);color:var(--text-main);flex:1;">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════ 2. REPORTE PDF ══════════ -->
+    <!-- (se genera desde botón en Resumen, no tiene sección propia) -->
+
+    <!-- ══════════ 3. PLAN DE MANTENIMIENTO ══════════ -->
+    <section id="mantenimiento-plan" class="view">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem;">
+            <div class="chart-card">
+                <div class="chart-header">
+                    <span><i class="ph-fill ph-calendar-check" style="color:var(--success);"></i> Calendario de Paradas Programadas</span>
+                    <button onclick="abrirModalParada(null)" style="padding:6px 14px;font-size:0.8rem;display:flex;align-items:center;gap:5px;">
+                        <i class="ph-bold ph-plus"></i> Nueva Parada
+                    </button>
+                </div>
+                <div id="plan-calendar" style="min-height:200px;"></div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-header"><span><i class="ph-fill ph-warning" style="color:var(--warning);"></i> Alertas de Mantenimiento</span></div>
+                <div id="plan-alertas" style="min-height:200px;"></div>
+            </div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-header"><span><i class="ph-fill ph-list-checks" style="color:var(--accent);"></i> Paradas Planificadas</span></div>
+            <div style="overflow-x:auto;">
+                <table class="ranking-table" style="width:100%;">
+                    <thead><tr><th>Máquina</th><th>Tipo</th><th>Fecha Prog.</th><th>Duración est.</th><th>Responsable</th><th>Estado</th><th></th></tr></thead>
+                    <tbody id="plan-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- Modal parada programada -->
+    <div id="plan-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;">
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:2rem;width:480px;max-width:95vw;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;">
+                <h3>Programar Parada</h3>
+                <button onclick="cerrarModalParada()" style="background:transparent;color:var(--text-dim);border:none;font-size:1.2rem;padding:4px;">✕</button>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+                <input type="hidden" id="plan-modal-id">
+                <select id="plan-modal-maquina" style="margin-bottom:0;">
+                    <option value="">Máquina...</option>
+                    <option value="alteirac">Primaria Altairac</option>
+                    <option value="n1560">Nordberg 1560</option>
+                    <option value="hp400">HP400</option>
+                    <option value="fc44">44FC</option>
+                    <option value="svedala">Svedala</option>
+                    <option value="hp100">HP100</option>
+                    <option value="hp200">HP200</option>
+                </select>
+                <select id="plan-modal-tipo" style="margin-bottom:0;">
+                    <option value="preventivo">Mantenimiento Preventivo</option>
+                    <option value="cambio-pieza">Cambio de Pieza</option>
+                    <option value="inspeccion">Inspección</option>
+                    <option value="correctivo">Correctivo Planificado</option>
+                </select>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                    <div><small style="color:var(--text-dim);">Fecha programada</small><input type="date" id="plan-modal-fecha" style="margin-bottom:0;width:100%;"></div>
+                    <div><small style="color:var(--text-dim);">Duración estimada (hs)</small><input type="number" id="plan-modal-duracion" placeholder="Horas" min="1" style="margin-bottom:0;width:100%;"></div>
+                </div>
+                <input type="text" id="plan-modal-responsable" placeholder="Responsable" style="margin-bottom:0;">
+                <input type="text" id="plan-modal-obs" placeholder="Descripción / tareas a realizar" style="margin-bottom:0;">
+            </div>
+            <div style="display:flex;gap:8px;margin-top:1.5rem;">
+                <button onclick="guardarParadaProgramada()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;">
+                    <i class="ph-bold ph-floppy-disk"></i> Guardar
+                </button>
+                <button onclick="cerrarModalParada()" style="background:rgba(128,128,128,0.15);color:var(--text-main);flex:1;">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════ 5. DASHBOARD DE TURNO ══════════ -->
+    <section id="turno-live" class="view">
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.5rem;" id="turno-kpis"></div>
+        <div style="display:grid;grid-template-columns:2fr 1fr;gap:1.5rem;">
+            <div class="chart-card">
+                <div class="chart-header">
+                    <span><i class="ph-fill ph-factory" style="color:var(--accent);"></i> Estado de Plantas — Turno Actual</span>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span id="turno-live-clock" style="font-size:0.85rem;font-weight:700;color:var(--accent);font-family:monospace;"></span>
+                        <div style="width:8px;height:8px;border-radius:50%;background:var(--success);animation:blastPulseAnim 2s infinite;"></div>
+                    </div>
+                </div>
+                <div id="turno-plantas-estado" style="display:flex;flex-direction:column;gap:12px;"></div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:1rem;">
+                <div class="chart-card">
+                    <div class="chart-header"><span><i class="ph-fill ph-note-pencil" style="color:var(--warning);"></i> Novedad del Turno</span></div>
+                    <textarea id="turno-novedad" placeholder="Registrá novedades del turno actual..." rows="4" style="width:100%;background:rgba(0,0,0,0.1);border:1px solid var(--border);border-radius:6px;padding:10px;color:var(--text-main);resize:vertical;font-family:inherit;font-size:0.85rem;"></textarea>
+                    <button onclick="guardarNovedadTurno()" style="width:100%;margin-top:8px;display:flex;align-items:center;justify-content:center;gap:6px;">
+                        <i class="ph-bold ph-check"></i> Guardar Novedad
+                    </button>
+                </div>
+                <div class="chart-card" style="flex:1;">
+                    <div class="chart-header"><span><i class="ph-fill ph-warning-circle" style="color:var(--danger);"></i> Alertas Activas</span></div>
+                    <div id="turno-alertas"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ======== ANALYTICS / CRUCE VOLADURAS ======== -->
+    <section id="analytics" class="view">
+        <div class="section-header">
+            <h2><i class="ph-fill ph-chart-scatter" style="color:var(--accent);"></i> Análisis: Cruce Voladuras → Producción</h2>
+        </div>
+        <div class="chart-card" style="margin-bottom:1.2rem;">
+            <div class="chart-header">
+                <span>Configuración del análisis</span>
+                <label style="display:flex;align-items:center;gap:8px;font-size:0.82rem;color:var(--text-dim);">
+                    Lag (días post-voladura):
+                    <input type="number" id="cruce-dias-lag" value="2" min="0" max="14" step="1"
+                        style="width:60px;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.82rem;"
+                        onchange="calcularCruceVoladuras()">
+                </label>
+                <button onclick="calcularCruceVoladuras()"
+                    style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:6px 16px;font-size:0.82rem;font-weight:700;cursor:pointer;">
+                    Recalcular
+                </button>
+            </div>
+        </div>
+        <!-- KPIs del cruce -->
+        <div id="cruce-kpis" class="grid-kpi" style="margin-bottom:1.2rem;"></div>
+        <!-- Gráficos -->
+        <div class="grid-main" style="margin-bottom:1.2rem;">
+            <div class="chart-card">
+                <div class="chart-header"><span>Tn Voladas vs Tn Producidas por evento</span></div>
+                <div style="height:280px;"><canvas id="chart-cruce-barras"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-header"><span>Costo USD/Tn a lo largo del tiempo</span></div>
+                <div style="height:280px;"><canvas id="chart-cruce-costo"></canvas></div>
+            </div>
+        </div>
+        <!-- Tabla detalle -->
+        <div class="chart-card">
+            <div class="chart-header"><span>Detalle por evento de voladura</span></div>
+            <div style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;font-size:0.8rem;">
+                    <thead>
+                        <tr style="border-bottom:1px solid var(--border);">
+                            <th style="padding:8px;text-align:left;color:var(--text-dim);">Fecha</th>
+                            <th style="padding:8px;text-align:left;color:var(--text-dim);">Frente</th>
+                            <th style="padding:8px;text-align:right;color:var(--text-dim);">Tn Voladas</th>
+                            <th style="padding:8px;text-align:right;color:var(--text-dim);">Costo</th>
+                            <th style="padding:8px;text-align:right;color:var(--text-dim);">P80</th>
+                            <th style="padding:8px;text-align:right;color:var(--text-dim);">VPP</th>
+                            <th style="padding:8px;text-align:right;color:var(--text-dim);">Tn Producidas</th>
+                            <th style="padding:8px;text-align:right;color:var(--text-dim);">USD/Tn</th>
+                            <th style="padding:8px;text-align:right;color:var(--text-dim);">Eficiencia</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cruce-tbody">
+                        <tr><td colspan="9" style="text-align:center;padding:30px;color:var(--text-dim);">
+                            Navegá a esta sección para calcular el cruce automáticamente.
+                        </td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+
+</main>
+
+
+
+<!-- ══ CHATBOT FLOTANTE ══ -->
+<div id="chatbot-fab" onclick="toggleChatbot()" title="Asistente IA"
+    style="position:fixed;bottom:24px;right:24px;width:52px;height:52px;
+           background:linear-gradient(135deg,#7c3aed,#a78bfa);
+           border-radius:50%;display:flex;align-items:center;justify-content:center;
+           cursor:pointer;z-index:9998;box-shadow:0 4px 16px rgba(124,58,237,0.4);
+           transition:transform 0.2s,box-shadow 0.2s;"
+    onmouseover="this.style.transform='scale(1.1)';this.style.boxShadow='0 6px 24px rgba(124,58,237,0.6)'"
+    onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 4px 16px rgba(124,58,237,0.4)'">
+    <svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Cabeza del robot/bot -->
+        <rect x="6" y="8" width="20" height="16" rx="4" fill="white" opacity="0.95"/>
+        <circle cx="12" cy="15" r="2.5" fill="#7c3aed"/>
+        <circle cx="20" cy="15" r="2.5" fill="#7c3aed"/>
+        <rect x="11" y="19" width="10" height="2" rx="1" fill="#7c3aed" opacity="0.7"/>
+        <rect x="14" y="4" width="4" height="4" rx="1" fill="white" opacity="0.9"/>
+        <rect x="15.5" y="3" width="1" height="2" rx="0.5" fill="white"/>
+        <rect x="2" y="12" width="3" height="6" rx="1.5" fill="white" opacity="0.7"/>
+        <rect x="27" y="12" width="3" height="6" rx="1.5" fill="white" opacity="0.7"/>
+    </svg>
+</div>
+
+<div id="chatbot-panel" style="display:none;position:fixed;bottom:88px;right:24px;
+    width:340px;max-height:480px;background:var(--bg-card);border:1px solid var(--border);
+    border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,0.4);z-index:9997;
+    flex-direction:column;overflow:hidden;">
+    <div style="background:linear-gradient(135deg,#7c3aed,#a78bfa);padding:14px 16px;display:flex;justify-content:space-between;align-items:center;">
+        <div style="display:flex;align-items:center;gap:8px;">
+            <div style="width:8px;height:8px;border-radius:50%;background:#34d399;animation:blastPulseAnim 2s infinite;"></div>
+            <span style="color:white;font-weight:700;font-size:0.9rem;">Asistente Guerrico</span>
+        </div>
+        <button onclick="toggleChatbot()" style="background:transparent;color:white;border:none;padding:2px;font-size:1.1rem;line-height:1;">✕</button>
+    </div>
+    <div id="chatbot-messages" style="flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;max-height:320px;">
+        <div style="background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.2);border-radius:12px 12px 12px 0;padding:10px 14px;font-size:0.82rem;color:var(--text-main);max-width:85%;">
+            Hola! Soy el asistente de la cantera. Puedo ayudarte con análisis de producción, desgaste, voladuras y más. ¿Qué necesitás?
+        </div>
+    </div>
+    <div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;gap:8px;">
+        <input type="text" id="chatbot-input" placeholder="Preguntá algo..." 
+            style="flex:1;margin-bottom:0;padding:8px 12px;font-size:0.82rem;border-radius:20px!important;"
+            onkeydown="if(event.key==='Enter') enviarMensajeChatbot()">
+        <button onclick="enviarMensajeChatbot()" style="padding:8px 14px;border-radius:20px;font-size:0.82rem;background:linear-gradient(135deg,#7c3aed,#a78bfa);">
+            <i class="ph-bold ph-paper-plane-right"></i>
+        </button>
+    </div>
+</div>
+
+<!-- ═══ MÓDULOS JS ═══ -->
+    <script src="js/appState.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/dataSync.js"></script>
+    <script src="js/uiUpdates.js"></script>
+    <script src="js/charts.js"></script>
+    <script src="js/reports.js"></script>
+    <script src="js/forms.js"></script>
+    <script src="js/blasting.js"></script>
+    <script src="js/wear.js"></script>
+    <script src="js/fleet.js"></script>
+    <script src="js/assets.js"></script>
+    <script src="js/production.js"></script>
+    <script src="js/inventory.js"></script>
+    <script src="js/maintenance.js"></script>
+    <script src="js/scales.js"></script>
+    <script src="js/live.js"></script>
+    <script src="js/analytics.js"></script>
+    <script src="js/ai.js"></script>
+    <script src="js/ai_analysis.js"></script>
+    <script src="js/importConsumosExcel.js"></script>
+    <script src="js/main.js"></script>
+
+    <!-- PWA Service Worker -->
+    <script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+            navigator.serviceWorker.register('./sw.js')
+                .then(function(reg) {
+                    console.log('[PWA] Service Worker registrado:', reg.scope);
+                    // Mostrar botón de actualización si hay nueva versión
+                    reg.addEventListener('updatefound', function() {
+                        var newWorker = reg.installing;
+                        newWorker.addEventListener('statechange', function() {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                console.log('[PWA] Nueva versión disponible');
+                            }
+                        });
+                    });
+                })
+                .catch(function(err) {
+                    console.log('[PWA] SW no registrado:', err);
+                });
+        });
+    }
+    </script>
+    <script>
+    // PWA Install prompt
+    var _deferredPrompt = null;
+    window.addEventListener('beforeinstallprompt', function(e) {
+        e.preventDefault();
+        _deferredPrompt = e;
+        var btn = document.getElementById('pwa-install-btn');
+        if (btn) btn.style.display = 'flex';
+    });
+    window.installPWA = function() {
+        if (!_deferredPrompt) return;
+        _deferredPrompt.prompt();
+        _deferredPrompt.userChoice.then(function(result) {
+            if (result.outcome === 'accepted') {
+                var btn = document.getElementById('pwa-install-btn');
+                if (btn) btn.style.display = 'none';
+            }
+            _deferredPrompt = null;
+        });
+    };
+    window.addEventListener('appinstalled', function() {
+        var btn = document.getElementById('pwa-install-btn');
+        if (btn) btn.style.display = 'none';
+        console.log('[PWA] App instalada correctamente');
+    });
+    </script>
+
+</body>
+</html>

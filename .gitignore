@@ -1,0 +1,16 @@
+# Windows
+Thumbs.db
+Desktop.ini
+
+# IDEs
+.vscode/
+.idea/
+
+# Node (si existiera)
+node_modules/
+npm-debug.log
+
+# Otros
+.DS_Store
+*.tmp
+temp/
