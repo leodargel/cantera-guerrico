@@ -4,7 +4,7 @@
  * Entry point for the Quarry Dashboard. Orchestrates initialization and real-time updates.
  */
 
-document.addEventListener('DOMContentLoaded', () => {
+function _initDashboard() {
     console.log('[Main] Initializing Dashboard...');
 
     // 1. Initial State Sync
@@ -103,7 +103,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 500);
 
     console.log('[Main] Initialization Complete.');
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', _initDashboard);
+} else {
+    _initDashboard();
+};
 
 /**
  * setupNavigation
@@ -111,14 +117,14 @@ document.addEventListener('DOMContentLoaded', () => {
  */
 function setupNavigation() {
     console.log('[Main] Setting up navigation...');
-    const navLinks = document.querySelectorAll('.nav-link');
-    navLinks.forEach(link => {
-        link.addEventListener('click', (e) => {
-            const view = link.getAttribute('data-view');
-            if (view) {
-                showView(view);
-            }
-        });
+    document.addEventListener('click', function(e) {
+        var link = e.target.closest('.nav-link');
+        if (!link) return;
+        var view = link.getAttribute('data-view');
+        if (view) {
+            e.preventDefault();
+            showView(view);
+        }
     });
 }
 

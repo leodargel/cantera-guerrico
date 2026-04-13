@@ -497,12 +497,13 @@ window.procesarExcelFlotaPesada = function(fileArg) {
 
                 headers.forEach(function(h) {
                     var hn = _norm(h);
-                    if (hn === 'descripcion' && !hn.includes('costeo')) keyDesc = h;
-                    if (hn.includes('costeo')) keyCateg = h;
+                    if (hn.includes('costeo')) { keyCateg = h; return; }
+                    if ((hn === 'descripcion' || hn.startsWith('descripci')) && !keyDesc) keyDesc = h;
                     if (hn === 'valor' || hn === 'valor"') keyValor = h;
                     if (hn.includes('mes de contab') || hn === 'mes') keyMes = h;
                     if (hn.includes('ubicacion tecnica') || hn.includes('ubicacion tec')) keyUbic = h;
                 });
+                if (!keyDesc && headers.length > 0) keyDesc = headers[0];
 
                 if (!keyValor || !keyUbic) return;
 

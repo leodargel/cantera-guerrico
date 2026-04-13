@@ -928,133 +928,93 @@ body.theme-light .tarea-badge { background: rgba(0,0,0,0.06); }
    MOBILE / PWA RESPONSIVE
    ═══════════════════════════════════ */
 /* ════════════════════════════════════════
-   RESPONSIVE MOBILE — v2 completo
+   RESPONSIVE MOBILE v8
    ════════════════════════════════════════ */
-
-/* Tablet */
 @media (max-width: 900px) {
     .grid-main { grid-template-columns: 1fr !important; }
     .grid-kpi  { grid-template-columns: repeat(3,1fr) !important; }
 }
 
-/* Mobile */
 @media (max-width: 768px) {
-
-    /* Header */
-    .top-navbar { padding: 0.4rem 0.7rem !important; gap: 6px; flex-wrap: nowrap; }
-    .logo-wrapper { gap: 6px; flex-shrink: 1; min-width: 0; }
-    .logo-title {
-        font-size: 0.78rem !important;
-        white-space: nowrap; overflow: hidden;
-        text-overflow: ellipsis; max-width: 120px;
-    }
-    .logo-title span, .logo-wrapper small { display: none; }
-    #nav-fecha-hoy { display: none; }
-
-    /* Turno badge compact */
-    #header-turno-badge { padding: 4px 7px !important; gap: 4px !important; font-size: 0.7rem !important; }
-    #header-turno-icon  { font-size: 0.85rem !important; }
-    #header-turno-texto { font-size: 0.7rem !important; }
-    #header-reloj-mini  { font-size: 0.78rem !important; }
-    #header-turno-restante { display: none; }
-
-    /* Top controls — keep backup/restore as icon-only */
-    .top-controls { gap: 4px; flex-shrink: 0; }
+    .top-navbar { padding: 0.35rem 0.6rem !important; gap: 5px; flex-wrap: nowrap; }
+    .logo-wrapper { gap: 5px; flex-shrink: 1; min-width: 0; max-width: 120px; }
+    .logo-badge { width: 28px !important; height: 28px !important; font-size: 0.7rem !important; flex-shrink: 0; }
+    .logo-title { font-size: 0.72rem !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .logo-title span, .logo-wrapper small { display: none !important; }
+    #nav-fecha-hoy { padding: 4px 8px !important; font-size: 0.72rem !important; }
+    input[type="month"] { font-size: 0.72rem !important; padding: 3px 6px !important; max-width: 130px; }
+    #header-turno-badge { padding: 3px 7px !important; gap: 4px !important; font-size: 0.68rem !important; }
+    #header-turno-restante { display: none !important; }
     #pwa-install-btn { display: none !important; }
-    .btn-label { display: none; }
+    .top-controls { gap: 4px; flex-shrink: 0; }
 
-    /* Navigation */
-    .nav-menu {
-        display: flex !important;
-        overflow-x: auto; overflow-y: hidden;
-        gap: 4px; padding: 5px 10px;
-        -webkit-overflow-scrolling: touch;
-        scrollbar-width: none;
-        scroll-snap-type: x mandatory;
-    }
+    .nav-menu { display: flex !important; overflow-x: auto; overflow-y: hidden; gap: 4px; padding: 5px 8px;
+        -webkit-overflow-scrolling: touch; scrollbar-width: none; }
     .nav-menu::-webkit-scrollbar { display: none; }
-    .nav-link {
-        white-space: nowrap; flex-shrink: 0;
-        padding: 5px 9px !important;
-        font-size: 0.7rem !important;
-        scroll-snap-align: start;
-        border-radius: 8px !important;
-    }
-    .nav-link i { font-size: 0.78rem; margin-right: 3px !important; }
+    .nav-link { white-space: nowrap; flex-shrink: 0; padding: 5px 9px !important;
+        font-size: 0.68rem !important; border-radius: 8px !important; }
+    .nav-link i { font-size: 0.75rem; margin-right: 3px !important; }
 
-    /* Content */
-    .main-content { padding: 0.65rem !important; }
+    .main-content { padding: 0.6rem !important; }
 
-    /* KPI grid — 2 cols */
-    .grid-kpi { grid-template-columns: repeat(2,1fr) !important; gap: 0.5rem !important; }
-    #costos-kpi-row { grid-template-columns: repeat(2,1fr) !important; gap: 0.5rem !important; }
-
-    .kpi-card { padding: 0.65rem 0.7rem !important; min-height: unset !important; }
-    .kpi-card h4 { font-size: 0.57rem !important; letter-spacing: 0.4px !important; margin-bottom: 3px !important; }
-    .kpi-card .kpi-info > div > span { font-size: 1.35rem !important; }
+    .grid-kpi { grid-template-columns: repeat(2,1fr) !important; gap: 0.45rem !important; }
+    #costos-kpi-row { grid-template-columns: repeat(2,1fr) !important; gap: 0.45rem !important; }
+    .kpi-card { padding: 0.6rem 0.65rem !important; overflow: hidden !important; }
+    .kpi-card h4 { font-size: 0.55rem !important; white-space: nowrap; overflow: hidden;
+        text-overflow: ellipsis; margin-bottom: 3px !important; }
+    .kpi-info > div > span,
+    .kpi-card span[style*="2.2rem"], .kpi-card span[style*="2rem"],
+    #kpi-mensual-produccion, #kpi-mensual-despacho, #kpi-mensual-balance,
+    #kpi-ratio-combustible, #kpi-costo-tn { font-size: 1.25rem !important; }
+    .kpi-smart-data * { font-size: 0.65rem !important; }
     .kpi-smart-data { margin-top: 3px !important; }
-    .smart-subtext { font-size: 0.63rem !important; }
-    .trend-badge { font-size: 0.58rem !important; padding: 1px 4px !important; }
+    .trend-badge { font-size: 0.58rem !important; padding: 2px 5px !important; margin-top: 3px !important; }
     .kpi-tooltip { display: none !important; }
 
-    /* Charts */
-    .grid-main { grid-template-columns: 1fr !important; gap: 0.7rem !important; }
-    .chart-card { padding: 0.7rem !important; }
-    .chart-header { font-size: 0.78rem !important; }
-    .chart-header span { font-size: 0.78rem !important; }
+    .grid-main { grid-template-columns: 1fr !important; gap: 0.6rem !important; }
+    .chart-card { padding: 0.65rem !important; }
+    .chart-header { font-size: 0.76rem !important; flex-wrap: wrap; }
     .chart-header button { padding: 4px 8px !important; font-size: 0.68rem !important; }
-    canvas { max-height: 200px !important; }
+    canvas { max-height: 220px !important; }
 
-    /* Smart summary */
-    .smart-summary-container { padding: 0.6rem 0.8rem !important; margin-bottom: 0.7rem !important; }
-    .smart-text { font-size: 0.78rem !important; line-height: 1.4 !important; }
+    #voladuras .grid-main { grid-template-columns: 1fr !important; }
+    #voladuras .grid-kpi[style*="repeat(5"] { grid-template-columns: repeat(2,1fr) !important; }
 
-    /* Tables */
-    .ranking-table th, .ranking-table td { padding: 5px 7px !important; font-size: 0.7rem !important; }
+    .smart-summary-container { padding: 0.55rem 0.75rem !important; margin-bottom: 0.7rem !important; }
+    .smart-text { font-size: 0.76rem !important; }
 
-    /* Upload zones */
-    .upload-zone { padding: 0.9rem !important; }
-    .upload-zone b { font-size: 0.8rem !important; }
+    .ranking-table th, .ranking-table td { padding: 5px 6px !important; font-size: 0.68rem !important; }
+    .upload-zone { padding: 0.8rem !important; }
+    .upload-zone b { font-size: 0.78rem !important; }
+    .upload-zone small { font-size: 0.65rem !important; }
 
-    /* Inline grids with 2+ cols → stack */
     div[style*="grid-template-columns:1fr 1fr"],
     div[style*="grid-template-columns: 1fr 1fr"],
-    div[style*="grid-template-columns:1.3fr 1fr"],
-    div[style*="grid-template-columns:1fr 1.2fr"] { grid-template-columns: 1fr !important; }
-
-    /* Inline grids with 3 cols → 2 cols */
+    div[style*="grid-template-columns:1fr 2fr"],
+    div[style*="grid-template-columns: 1fr 2fr"],
+    div[style*="grid-template-columns:2fr 1fr"] { grid-template-columns: 1fr !important; }
     div[style*="grid-template-columns:repeat(3"],
     div[style*="grid-template-columns: repeat(3"] { grid-template-columns: repeat(2,1fr) !important; }
 
-    /* Forms */
-    form[style*="grid-template-columns:repeat(3"],
-    form[style*="grid-template-columns: repeat(3"] { grid-template-columns: 1fr 1fr !important; }
-
-    /* Voladuras / Análisis */
-    #cruce-kpis { grid-template-columns: repeat(2,1fr) !important; }
-
-    /* Modal expediente */
-    #expediente-modal-overlay > div {
-        padding: 14px !important;
-        margin: 8px !important;
-        max-height: 95vh !important;
-        width: calc(100vw - 16px) !important;
+    #expediente-modal-overlay > div,
+    #pesada-modal-overlay > div {
+        padding: 14px !important; margin: 6px !important;
+        max-height: 95vh !important; width: calc(100vw - 12px) !important;
     }
 }
 
-/* Small phones */
 @media (max-width: 400px) {
-    .logo-title { max-width: 75px; font-size: 0.7rem !important; }
-    .main-content { padding: 0.45rem !important; }
-    .kpi-card { padding: 0.55rem !important; }
-    .nav-link { padding: 4px 7px !important; font-size: 0.65rem !important; }
+    .main-content { padding: 0.4rem !important; }
+    .kpi-card { padding: 0.5rem !important; }
+    .nav-link { padding: 4px 7px !important; font-size: 0.62rem !important; }
+    .grid-kpi { gap: 0.35rem !important; }
 }
 
-/* Touch — prevent iOS zoom on inputs, bigger tap targets */
 @media (hover: none) and (pointer: coarse) {
-    input, select, textarea { font-size: 16px !important; min-height: 40px; }
-    button { min-height: 40px; }
+    input, select, textarea { font-size: 16px !important; }
+    button { min-height: 38px; }
     .nav-link { min-height: 36px; display: flex; align-items: center; }
+    .kpi-tooltip { display: none !important; }
 }
 
 </style>
@@ -1963,75 +1923,90 @@ body.theme-light .tarea-badge { background: rgba(0,0,0,0.06); }
             </div>
         </div>
     </div>
-    <!-- IMPORTAR EXCEL -->
-    <div class="chart-card" style="margin-bottom:2rem;border:1px dashed var(--accent);background:rgba(59,130,246,0.05);">
-        <div class="chart-header" onclick="toggleSection('import-flota')" style="cursor:pointer;user-select:none;"><span><i class="ph-fill ph-file-xls"></i> Importar Gastos de Camionetas (Excel / CSV)</span> <span id="caret-import-flota" style="font-size:0.78rem;color:var(--text-dim);margin-left:auto;transition:transform 0.2s;">▸</span></div>
-<div id="content-import-flota" style="display:none;">
-        <div style="margin-top:1rem;">
-            <label class="upload-zone" id="upload-zone-flota" for="file-flota" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="event.preventDefault();this.classList.remove('dragover');document.getElementById('file-flota').files=event.dataTransfer.files;procesarExcelFlotaLiviana();">
+    <!-- ── GRÁFICOS PRIMERO ── -->
+    <!-- Expedientes grid — aparece tras importar -->
+    <div id="expedientes-flota" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-bottom:1.2rem;"></div>
+
+    <!-- Status importación -->
+    <div id="flota-import-status" style="display:none;padding:9px 14px;border-radius:8px;font-size:0.82rem;font-weight:600;margin-bottom:1rem;border:1px solid transparent;"></div>
+
+    <!-- ── IMPORTAR — colapsable y compacto ── -->
+    <div class="chart-card" style="margin-bottom:1.2rem;">
+        <div class="chart-header" onclick="toggleSection('import-flota')" style="cursor:pointer;user-select:none;margin-bottom:0;">
+            <span><i class="ph-fill ph-file-xls" style="color:var(--success);"></i> Importar Excel de Gastos de Camionetas</span>
+            <span id="caret-import-flota" style="font-size:0.78rem;color:var(--text-dim);margin-left:auto;">▸</span>
+        </div>
+        <div id="content-import-flota" style="display:none;margin-top:1rem;">
+            <label class="upload-zone" for="file-flota"
+                ondragover="event.preventDefault();this.classList.add('dragover')"
+                ondragleave="this.classList.remove('dragover')"
+                ondrop="event.preventDefault();this.classList.remove('dragover');document.getElementById('file-flota').files=event.dataTransfer.files;procesarExcelFlotaLiviana();">
                 <input type="file" id="file-flota" accept=".xlsx,.xls,.csv" onchange="procesarExcelFlotaLiviana(this.files[0])">
-                <i class="ph-fill ph-upload-simple" style="font-size:2rem;color:var(--accent);margin-bottom:10px;display:block;"></i>
-                <b style="color:var(--text-main);">Arrastrá tu archivo o hacé clic para seleccionar</b><br>
-                <small style="color:var(--text-dim);">Formatos: .xlsx, .xls, .csv — Columnas: UBICACIÓN TÉCNICA | DESCRIPCIÓN | VALOR | MES</small>
+                <i class="ph-fill ph-upload-simple" style="font-size:1.4rem;color:var(--accent);margin-bottom:4px;display:block;"></i>
+                <b style="color:var(--text-main);font-size:0.85rem;">Arrastrá el Excel de camionetas o hacé clic</b><br>
+                <small style="color:var(--text-dim);">Gastos_camionetas_2026.xls · Columnas: Descripción · Valor · Mes · Ubicación Técnica</small>
             </label>
         </div>
-        <div id="flota-import-status" style="display:none;padding:10px 14px;border-radius:8px;font-size:0.82rem;font-weight:600;margin-top:0.5rem;border:1px solid transparent;"></div>
-        <div id="expedientes-flota" style="margin-top:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;"></div>
-    
-</div><!-- end collapse import-flota --></div>
-    <div class="grid-main" style="grid-template-columns:1fr 1fr;margin-bottom:2rem;">
-        <div class="chart-card">
-            <div class="chart-header" onclick="toggleSection('carga-comb')" style="cursor:pointer;user-select:none;"><span><i class="ph-fill ph-gas-pump"></i> Carga Mensual de Combustible</span> <span id="caret-carga-comb" style="font-size:0.78rem;color:var(--text-dim);margin-left:auto;transition:transform 0.2s;">▸</span></div>
-<div id="content-carga-comb" style="display:none;">
-            <form id="form-combustible-manual" style="margin-top:1rem;display:flex;flex-direction:column;gap:10px;">
-                <label style="color:var(--text-dim);font-size:0.8rem;display:block;">Vehículo / Equipo</label>
-                <select id="input-flota-vehiculo" required>
-                    <option value="Amarok N° 19">Amarok N° 19</option><option value="Ford Ranger N° 9">Ford Ranger N° 9</option><option value="Ford Ranger N° 25">Ford Ranger N° 25</option><option value="Fiat Strada N° 20">Fiat Strada N° 20</option><option value="Peugeot Partner N° 21">Peugeot Partner N° 21</option>
-                </select>
-                <label style="color:var(--text-dim);font-size:0.8rem;display:block;">Litros Consumidos en el Mes</label>
-                <input type="number" id="input-flota-litros" placeholder="Ej: 450" required>
-                <button type="submit" style="background:var(--accent);color:#fff;font-weight:bold;padding:12px;border:none;border-radius:6px;cursor:pointer;">Registrar Consumo</button>
-            </form>
-        
-</div><!-- end collapse carga-comb --></div>
-        <div class="chart-card">
-            <div class="chart-header"><span><i class="ph-fill ph-gas-pump" style="color:var(--warning);"></i> Combustible por Unidad (Lts)</span></div>
-            <div id="chart-flota-combustible-wrap" style="min-height:200px;position:relative;">
-                <canvas id="chart-flota-combustible"></canvas>
+    </div>
+
+    <!-- ── HERRAMIENTAS — 3 colapsables en fila ── -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1.2rem;">
+        <!-- Combustible -->
+        <div class="chart-card" style="padding:10px 12px;">
+            <div class="chart-header" onclick="toggleSection('carga-comb')" style="cursor:pointer;user-select:none;margin-bottom:0;padding:0;">
+                <span style="font-size:0.78rem;"><i class="ph-fill ph-gas-pump" style="color:var(--warning);"></i> Carga Combustible</span>
+                <span id="caret-carga-comb" style="font-size:0.72rem;color:var(--text-dim);">▸</span>
+            </div>
+            <div id="content-carga-comb" style="display:none;margin-top:10px;">
+                <form id="form-combustible-manual" style="display:flex;flex-direction:column;gap:8px;">
+                    <select id="input-flota-vehiculo" required style="font-size:0.78rem;">
+                        <option value="Amarok N° 19">Amarok N° 19</option><option value="Ford Ranger N° 9">Ford Ranger N° 9</option><option value="Ford Ranger N° 25">Ford Ranger N° 25</option><option value="Fiat Strada N° 20">Fiat Strada N° 20</option><option value="Peugeot Partner N° 21">Peugeot Partner N° 21</option>
+                    </select>
+                    <input type="number" id="input-flota-litros" placeholder="Litros del mes" required style="font-size:0.78rem;">
+                    <button type="submit" style="padding:7px;font-size:0.78rem;">Registrar</button>
+                </form>
+            </div>
+        </div>
+        <!-- Orden de trabajo -->
+        <div class="chart-card" style="padding:10px 12px;">
+            <div class="chart-header" onclick="toggleSection('orden-trabajo')" style="cursor:pointer;user-select:none;margin-bottom:0;padding:0;">
+                <span style="font-size:0.78rem;"><i class="ph-fill ph-wrench" style="color:var(--accent);"></i> Orden de Trabajo</span>
+                <span id="caret-orden-trabajo" style="font-size:0.72rem;color:var(--text-dim);">▸</span>
+            </div>
+            <div id="content-orden-trabajo" style="display:none;margin-top:10px;">
+                <form id="form-mante-externo" style="display:flex;flex-direction:column;gap:8px;">
+                    <select id="ext-unidad" required style="font-size:0.78rem;"><option value="" disabled selected>Camioneta...</option></select>
+                    <input type="text" id="ext-taller" placeholder="Taller" required style="font-size:0.78rem;">
+                    <input type="text" id="ext-tarea" placeholder="Tarea" required style="font-size:0.78rem;">
+                    <div style="display:flex;gap:6px;">
+                        <input type="number" id="ext-costo" placeholder="Costo $" style="flex:1;font-size:0.78rem;margin:0;">
+                        <input type="number" id="ext-km" placeholder="KM" style="flex:1;font-size:0.78rem;margin:0;">
+                    </div>
+                    <input type="text" id="ext-factura" placeholder="N° Factura" style="font-size:0.78rem;">
+                    <button type="submit" style="padding:7px;font-size:0.78rem;">Registrar</button>
+                </form>
+            </div>
+        </div>
+        <!-- Alta vehículo -->
+        <div class="chart-card" style="padding:10px 12px;">
+            <div class="chart-header" onclick="toggleSection('alta-vehiculo')" style="cursor:pointer;user-select:none;margin-bottom:0;padding:0;">
+                <span style="font-size:0.78rem;"><i class="ph-fill ph-plus-circle" style="color:var(--success);"></i> Nueva Unidad</span>
+                <span id="caret-alta-vehiculo" style="font-size:0.72rem;color:var(--text-dim);">▸</span>
+            </div>
+            <div id="content-alta-vehiculo" style="display:none;margin-top:10px;">
+                <form id="form-alta-vehiculo" style="display:flex;flex-direction:column;gap:8px;">
+                    <input type="text" id="alta-nombre" placeholder="Nombre (Ej: Hilux 15)" required style="font-size:0.78rem;">
+                    <div style="display:flex;gap:6px;">
+                        <input type="number" id="alta-km" placeholder="KM inicial" style="flex:1;font-size:0.78rem;margin:0;">
+                        <input type="number" id="alta-service" placeholder="Próx. service" style="flex:1;font-size:0.78rem;margin:0;">
+                    </div>
+                    <input type="text" id="alta-taller" placeholder="Taller habitual" style="font-size:0.78rem;">
+                    <button type="submit" style="background:var(--success);padding:7px;font-size:0.78rem;">+ Añadir</button>
+                </form>
             </div>
         </div>
     </div>
-    <div class="grid-main">
-        <div class="chart-card">
-            <div class="chart-header"><span>Seguimiento de Flota Liviana</span></div>
-            <table class="ranking-table"><thead><tr><th>Unidad/Taller</th><th>KM Actual</th><th>Próx. Service</th><th>Estado</th></tr></thead><tbody id="flota-table-body"></tbody></table>
-        </div>
-        <div class="chart-card">
-            <div class="chart-header" onclick="toggleSection('orden-trabajo')" style="cursor:pointer;user-select:none;"><span>Orden de Trabajo Externa</span> <span id="caret-orden-trabajo" style="font-size:0.78rem;color:var(--text-dim);margin-left:auto;transition:transform 0.2s;">▸</span></div>
-<div id="content-orden-trabajo" style="display:none;">
-            <form id="form-mante-externo">
-                <select id="ext-unidad" required><option value="" disabled selected>Seleccionar Camioneta...</option></select>
-                <input type="text" id="ext-taller" placeholder="Nombre del Taller" required>
-                <input type="text" id="ext-tarea" placeholder="Tarea (Ej: Cambio de Embrague)" required>
-                <div style="display:flex;gap:10px;"><input type="number" id="ext-costo" placeholder="Costo (USD)" style="flex:1;width:auto;margin-bottom:0;" required><input type="number" id="ext-km" placeholder="KM Actual" style="flex:1;width:auto;margin-bottom:0;" required></div>
-                <input type="text" id="ext-factura" placeholder="Nro de Factura / Remito" style="margin-top:8px;">
-                <button type="submit" style="margin-top:5px;">Registrar Arreglo Externo</button>
-            </form>
-        
-</div><!-- end collapse orden-trabajo --></div>
-        <div class="chart-card" style="border-top:2px solid var(--success);">
-            <div class="chart-header" onclick="toggleSection('alta-vehiculo')" style="cursor:pointer;user-select:none;">Añadir Nueva Unidad <span id="caret-alta-vehiculo" style="font-size:0.78rem;color:var(--text-dim);margin-left:auto;transition:transform 0.2s;">▸</span></div>
-<div id="content-alta-vehiculo" style="display:none;">
-            <form id="form-alta-vehiculo">
-                <input type="text" id="alta-nombre" placeholder="Nombre/Interno (Ej: Hilux 15)" required>
-                <div style="display:flex;gap:10px;"><input type="number" id="alta-km" placeholder="KM Inicial" style="flex:1;width:auto;margin-bottom:0;" required><input type="number" id="alta-service" placeholder="Próx. Service" style="flex:1;width:auto;margin-bottom:0;" required></div>
-                <input type="text" id="alta-taller" placeholder="Taller Habitual" style="margin-top:8px;">
-                <button type="submit" style="background:var(--success);margin-top:5px;">+ Registrar Vehículo</button>
-            </form>
-        
-</div><!-- end collapse alta-vehiculo --></div>
-    </div>
-    <div class="grid-main" style="grid-template-columns:1fr 1fr;margin-top:1.5rem;">
+
         <div class="chart-card">
             <div class="chart-header">
                 <span><i class="ph-fill ph-chart-bar-horizontal" style="color:var(--danger);"></i> Ranking Gastos por Unidad</span>
@@ -2049,9 +2024,9 @@ body.theme-light .tarea-badge { background: rgba(0,0,0,0.06); }
             <div style="height:260px;"><canvas id="chart-flota-evolucion"></canvas></div>
         </div>
         <div class="chart-card">
-            <div class="chart-header" style="display:flex;justify-content:space-between;align-items:center;">
-                <span>Expediente Técnico</span>
-                <select id="select-expediente" style="padding:4px 8px;font-size:0.8rem;width:auto;margin-bottom:0;"></select>
+            <div class="chart-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+                <span style="font-size:0.82rem;"><i class="ph-fill ph-folder-open" style="color:var(--accent);"></i> Expediente por Vehículo</span>
+                <select id="select-expediente" style="padding:4px 8px;font-size:0.75rem;width:auto;margin-bottom:0;max-width:200px;"></select>
             </div>
             <div style="margin-bottom:10px;font-size:0.85rem;color:var(--text-dim);">Gasto Total Histórico: <strong id="expediente-total-usd" style="color:var(--danger);font-size:1.2rem;">$ 0</strong></div>
             <div style="max-height:180px;overflow-y:auto;"><table class="ranking-table"><thead><tr><th>Fecha</th><th>Tarea/Taller</th><th>Costo</th></tr></thead><tbody id="expediente-body"></tbody></table></div>
@@ -2063,57 +2038,64 @@ body.theme-light .tarea-badge { background: rgba(0,0,0,0.06); }
 <section id="mantenimiento-pesado" class="view">
     <div class="smart-summary-container"><p style="font-size:0.95rem;color:var(--text-main);">Control de Flota Pesada — Costos y Paradas por Equipo</p></div>
 
-    <!-- IMPORTAR EXCEL FLOTA PESADA — LECTOR GUERRICO (RP.MOV-VM) -->
-    <div class="chart-card" style="margin-bottom:2rem;border:1px dashed var(--warning);background:rgba(245,158,11,0.04);">
-        <div class="chart-header" style="flex-wrap:wrap;gap:10px;">
-            <span><i class="ph-fill ph-file-xls" style="color:var(--warning);"></i> Importar Compras Mensuales — Gastos por Equipo</span>
-            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-                <div style="display:flex;align-items:center;gap:6px;font-size:0.78rem;color:var(--text-dim);">
-                    <span style="font-weight:700;">Filtrar por:</span>
-                    <select id="pesada-filtro-costeo" style="width:auto;margin-bottom:0;padding:4px 8px;font-size:0.78rem;border-radius:5px;" onchange="if(window._lastPesadaFile) procesarExcelFlotaPesada(window._lastPesadaFile)">
-                        <option value="RP.MOV-VM">RP.MOV-VM — Rep. Móvil</option>
-                        <option value="RP.EF-VM">RP.EF-VM — Rep. Fijo</option>
-                        <option value="LUB-VM">LUB-VM — Lubricantes</option>
-                        <option value="MO.MAT-VM">MO.MAT-VM — Mano de Obra</option>
-                        <option value="TODOS">TODOS los equipos</option>
-                    </select>
-                </div>
-                <button type="button" onclick="limpiarImportPesada()" style="background:rgba(239,68,68,0.1);color:var(--danger);border:1px solid rgba(239,68,68,0.25);padding:5px 12px;font-size:0.75rem;border-radius:6px;">
-                    <i class="ph-bold ph-trash"></i> Limpiar
-                </button>
+    <!-- ── EXPEDIENTES PESADA ── -->
+    <div id="pesada-expedientes-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-bottom:1.2rem;"></div>
+
+    <!-- STATUS -->
+    <div id="pesada-status" style="display:none;padding:9px 14px;border-radius:8px;font-size:0.82rem;font-weight:700;margin-bottom:1rem;"></div>
+
+    <!-- ── IMPORTAR PESADA — colapsable ── -->
+    <div class="chart-card" style="margin-bottom:1.2rem;">
+        <div class="chart-header" onclick="toggleSection('import-pesada')" style="cursor:pointer;user-select:none;margin-bottom:0;">
+            <span><i class="ph-fill ph-file-xls" style="color:var(--warning);"></i> Importar Compras Mensuales — Equipos Pesados</span>
+            <div style="display:flex;align-items:center;gap:8px;">
+                <select id="pesada-filtro-costeo" style="width:auto;margin-bottom:0;padding:3px 7px;font-size:0.72rem;border-radius:5px;" onchange="if(window._lastPesadaFile) procesarExcelFlotaPesada(window._lastPesadaFile)" onclick="event.stopPropagation()">
+                    <option value="RP.MOV-VM">RP.MOV-VM</option>
+                    <option value="RP.EF-VM">RP.EF-VM</option>
+                    <option value="LUB-VM">LUB-VM</option>
+                    <option value="MO.MAT-VM">MO.MAT-VM</option>
+                    <option value="TODOS">TODOS</option>
+                </select>
+                <button onclick="limpiarImportPesada();event.stopPropagation()" style="background:rgba(239,68,68,0.1);color:var(--danger);border:1px solid rgba(239,68,68,0.2);padding:3px 8px;font-size:0.7rem;border-radius:5px;min-height:unset;">✕</button>
+                <span id="caret-import-pesada" style="font-size:0.72rem;color:var(--text-dim);">▸</span>
             </div>
         </div>
-        <label class="upload-zone" id="upload-zone-pesada" for="file-pesada"
-            ondragover="event.preventDefault();this.classList.add('dragover')"
-            ondragleave="this.classList.remove('dragover')"
-            ondrop="event.preventDefault();this.classList.remove('dragover');document.getElementById('file-pesada').files=event.dataTransfer.files;procesarExcelFlotaPesada();">
-            <input type="file" id="file-pesada" accept=".xlsx,.xls,.csv" onchange="procesarExcelFlotaPesada()">
-            <i class="ph-fill ph-upload-simple" style="font-size:1.8rem;color:var(--warning);margin-bottom:8px;display:block;"></i>
-            <b style="color:var(--text-main);">Arrastrá el archivo "Compras_mensuales_Año_2026.xls" o hacé clic</b><br>
-            <small style="color:var(--text-dim);">Detecta automáticamente la hoja del mes activo · Filtra por Descripción Costeo · Agrupa por Ubicación Técnica</small>
-        </label>
-
-        <!-- STATUS BAR -->
-        <div id="pesada-status" style="display:none;margin-top:12px;padding:10px 14px;border-radius:8px;font-size:0.82rem;font-weight:700;display:flex;align-items:center;gap:10px;"></div>
-
-        <!-- EXPEDIENTES POR EQUIPO -->
-        <div id="pesada-import-preview" style="margin-top:12px;display:none;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><span style="font-size:0.82rem;font-weight:700;color:var(--text-main);">Vista previa</span></div>
-            <div style="max-height:140px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;"><table class="ranking-table" style="width:100%;"><thead><tr><th>Fecha</th><th>Equipo</th><th>Tarea</th><th>Costo</th></tr></thead><tbody id="pesada-import-tbody"></tbody></table></div>
+        <div id="content-import-pesada" style="display:none;margin-top:1rem;">
+            <label class="upload-zone" for="file-pesada"
+                ondragover="event.preventDefault();this.classList.add('dragover')"
+                ondragleave="this.classList.remove('dragover')"
+                ondrop="event.preventDefault();this.classList.remove('dragover');document.getElementById('file-pesada').files=event.dataTransfer.files;procesarExcelFlotaPesada();">
+                <input type="file" id="file-pesada" accept=".xlsx,.xls,.csv" onchange="procesarExcelFlotaPesada()">
+                <i class="ph-fill ph-upload-simple" style="font-size:1.4rem;color:var(--warning);margin-bottom:4px;display:block;"></i>
+                <b style="color:var(--text-main);font-size:0.85rem;">Arrastrá Compras_mensuales_Año_2026.xls o hacé clic</b><br>
+                <small style="color:var(--text-dim);">Detecta la hoja del mes · Filtra por categoría · Agrupa por Ubicación Técnica</small>
+            </label>
         </div>
-        <div id="pesada-expedientes-grid" style="margin-top:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;"></div>
     </div>
 
-    <div class="grid-main">
-        <div class="chart-card"><div class="chart-header" id="flota-pesada-header"><span>Estado de Flota — <span id="flota-mes-label" style="color:var(--warning);"></span></span></div><table class="ranking-table"><thead><tr><th>Equipo</th><th>Paradas</th><th>Inversión Total</th></tr></thead><tbody id="flota-pesada-table-body"></tbody></table></div>
-        <div class="chart-card"><div class="chart-header" onclick="toggleSection('gasto-pesada')" style="cursor:pointer;user-select:none;"><span>Registrar Gasto de Equipo</span> <span id="caret-gasto-pesada" style="font-size:0.78rem;color:var(--text-dim);margin-left:auto;transition:transform 0.2s;">▸</span></div>
-<div id="content-gasto-pesada" style="display:none;">
-            <form id="form-mante-pesada">
-                <select id="pes-unidad" required><option value="" disabled selected>Seleccionar Equipo...</option></select>
-                <input type="text" id="pes-tarea" placeholder="Descripción de repuestos/arreglo" required>
-                <input type="number" id="pes-costo" placeholder="Costo Total (USD)" required>
-                <button type="submit">Cargar Gasto al Historial</button>
-            </form>
+    <!-- ── HERRAMIENTAS PESADA ── -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1.2rem;">
+        <div class="chart-card" style="padding:10px 12px;">
+            <div class="chart-header" onclick="toggleSection('pesada-resumen')" style="cursor:pointer;user-select:none;margin-bottom:0;padding:0;">
+                <span style="font-size:0.78rem;"><i class="ph-fill ph-list" style="color:var(--warning);"></i> Resumen de Flota</span>
+                <span id="caret-pesada-resumen" style="font-size:0.72rem;color:var(--text-dim);">▸</span>
+            </div>
+            <div id="content-pesada-resumen" style="display:none;margin-top:10px;">
+                <table class="ranking-table" style="font-size:0.72rem;"><thead><tr><th>Equipo</th><th>Registros</th><th>Total</th></tr></thead><tbody id="flota-pesada-table-body"></tbody></table>
+            </div>
+        </div>
+        <div class="chart-card" style="padding:10px 12px;">
+            <div class="chart-header" onclick="toggleSection('gasto-pesada')" style="cursor:pointer;user-select:none;margin-bottom:0;padding:0;">
+                <span style="font-size:0.78rem;"><i class="ph-fill ph-wrench" style="color:var(--accent);"></i> Registrar Gasto Manual</span>
+                <span id="caret-gasto-pesada" style="font-size:0.72rem;color:var(--text-dim);">▸</span>
+            </div>
+            <div id="content-gasto-pesada" style="display:none;margin-top:10px;">
+                <form id="form-mante-pesada" style="display:flex;flex-direction:column;gap:8px;">
+                    <select id="pes-unidad" required style="font-size:0.78rem;"><option value="" disabled selected>Seleccionar Equipo...</option></select>
+                    <input type="text" id="pes-tarea" placeholder="Descripción tarea/repuesto" required style="font-size:0.78rem;">
+                    <input type="number" id="pes-costo" placeholder="Costo $" required style="font-size:0.78rem;">
+                    <button type="submit" style="padding:7px;font-size:0.78rem;">Cargar Gasto</button>
+                </form>
         
 </div><!-- end collapse gasto-pesada --></div>
         <div class="chart-card" style="border-top:2px solid var(--warning);"><div class="chart-header" onclick="toggleSection('alta-pesada')" style="cursor:pointer;user-select:none;">Añadir Nuevo Equipo <span id="caret-alta-pesada" style="font-size:0.78rem;color:var(--text-dim);">▸</span></div>
