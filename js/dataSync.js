@@ -514,212 +514,169 @@ window.procesarExcelProduccion = function(inputEl) {
     if (!file) return;
 
     var statusEl = document.getElementById('prod-import-status');
-    if (statusEl) {
+    function setStatus(msg, type) {
+        if (!statusEl) return;
         statusEl.style.display = 'flex';
-        statusEl.style.background = 'rgba(59,130,246,0.15)';
-        statusEl.style.border = '1px solid var(--accent)';
-        statusEl.textContent = '⏳ Procesando Excel...';
+        var colors = { info:'rgba(59,130,246,0.15)', ok:'rgba(34,197,94,0.15)', warn:'rgba(245,158,11,0.15)', err:'rgba(239,68,68,0.15)' };
+        var borders = { info:'var(--accent)', ok:'var(--success)', warn:'var(--warning)', err:'var(--danger)' };
+        statusEl.style.background = colors[type] || colors.info;
+        statusEl.style.border = '1px solid ' + (borders[type] || borders.info);
+        statusEl.textContent = msg;
     }
+    setStatus('⏳ Procesando Excel...', 'info');
 
     var reader = new FileReader();
     reader.onload = function(e) {
         try {
-            var data = new Uint8Array(e.target.result);
-            var wb   = XLSX.read(data, {type:'array'});
+            var wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
 
-            // Buscar hoja del mes actual
+            // Buscar hoja del mes — acepta "ENERO", "Enero", "enero", etc.
             var mesesES = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO',
                            'JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
             var mesActual = mesesES[currentMonth];
             var sheetName = wb.SheetNames.find(function(s) {
-                return s.toUpperCase().includes(mesActual);
-            }) || wb.SheetNames[0];
-            var sheet = wb.Sheets[sheetName];
+                return s.trim().toUpperCase() === mesActual ||
+                       s.trim().toUpperCase().includes(mesActual);
+            });
+            if (!sheetName) {
+                setStatus('⚠️ No se encontró la hoja "' + mesActual + '". Hojas disponibles: ' + wb.SheetNames.join(', '), 'warn');
+                return;
+            }
 
-            // Leer como array de arrays con header numérico
-            var rows = XLSX.utils.sheet_to_json(sheet, {header:1, defval:''});
+            // Leer como array de arrays (índice 0-based)
+            var rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], {header:1, defval:''});
 
-            // ── Estructura del Excel Guerrico ──────────────────────────────
-            // Fila 0 (row 1): Adolfo Guerrico S.A.
-            // Fila 1 (row 2): Título "Produccion Villa Monica - MES AÑO"
-            // Fila 2 (row 3): vacía
-            // Fila 3 (row 4): cabeceras grupo (PRIMARIA / PLANTA 1 / PLANTA 2)
-            // Fila 4 (row 5): sub-cabeceras (Día, Turno, Hs trabajo, Operador, Prod turno, ...)
-            // Fila 5+ (rows 6+): datos — 2 filas por día (23hs + 08hs/09hs)
-            //
-            // Columnas (índice 0-based):
-            //   1=Día(B)  2=Turno(C)  3=Hs trabajo(D)
-            //   PRIMARIA:  4=Operador(E)  5=Prod turno(F)  6=Prod día(G)
-            //              7=Prog mes(H)  8=Hs perdid(I)   9=Hs Prod(J)  10=Prod/h(K)
-            //   PLANTA 1:  11=Operador(L) 12=HS N1560(M)  13=HS HP400(N)
-            //              14=HS 44FC(O)  15=HS cta34(P)  16=HS cta25(Q)
-            //   PLANTA 2:  17=Operador(R) 18=Tn Primaria Svedala(S)
-            //              19=HS Prim Svedala(T) 20=HS Secund GP100(U)
-            //              21=Hs Terciaria HP200(V) 22=Aliment9(W) 23=Aliment18(X)
+            // ── Columnas exactas del Excel Guerrico (0-based) ────────────
+            // A=0  Día
+            // B=1  Turno  (00hs / 08hs / 23hs / FERIADO / DOMINGO)
+            // C=2  Hs trabajo
+            // D=3  Operador PRIMARIA
+            // E=4  Producción turno PRIMARIA
+            // F=5  Producción día
+            // G=6  Progresivo mes
+            // H=7  Hs perdidas PRIMARIA
+            // I=8  Hs Prod PRIMARIA
+            // J=9  Prod x hora
+            // K=10 Operador PLANTA 1
+            // L=11 HS N1560
+            // M=12 HS HP400
+            // N=13 HS 44FC
+            // O=14 HS cta34
+            // P=15 HS cta25
+            // Q=16 Operador PLANTA 2
+            // R=17 Tn Primaria Svedala
+            // S=18 HS Primaria Svedala
+            // T=19 HS Secund GP100
+            // U=20 Hs Terciaria HP200
+            // V=21 Aliment 9
+            // W=22 Aliment 18
 
-            var COL = {
-                DIA:            1,
-                TURNO:          2,
-                HS_TRABAJO:     3,
-                // PRIMARIA
-                OP_PRIM:        4,
-                PROD_TURNO:     5,
-                PROD_DIA:       6,
-                PROG_MES:       7,
-                HS_PERD_PRIM:   8,
-                HS_PROD_PRIM:   9,
-                PROD_H_PRIM:    10,
-                // PLANTA 1
-                OP_P1:          11,
-                HS_N1560:       12,
-                HS_HP400:       13,
-                HS_44FC:        14,
-                HS_CTA34:       15,
-                HS_CTA25:       16,
-                // PLANTA 2
-                OP_P2:          17,
-                TN_SVEDALA:     18,
-                HS_SVEDALA:     19,
-                HS_GP100:       20,
-                HS_HP200:       21,
-                ALIM9:          22,
-                ALIM18:         23
-            };
-
-            var anio = currentYear;
+            var anio   = String(currentYear);
             var mesNum = String(currentMonth + 1).padStart(2, '0');
-            var newRecords = [];
+            var n = function(v) { return parseFloat(v) || 0; };
+            var s = function(v) { return String(v || '').trim(); };
 
-            // Detectar fila de inicio de datos (primera fila con número de día en col B)
-            var dataStartRow = 5; // por defecto fila 6 (index 5)
+            // Detectar fila de inicio (primera fila con número en col A)
+            var dataStart = 5; // por defecto fila 6 (index 5)
             for (var r = 3; r < Math.min(rows.length, 15); r++) {
-                var cellDia = rows[r][COL.DIA];
-                if (typeof cellDia === 'number' && cellDia >= 1 && cellDia <= 31) {
-                    dataStartRow = r;
-                    break;
+                if (typeof rows[r][0] === 'number' && rows[r][0] >= 1) {
+                    dataStart = r; break;
                 }
             }
 
-            var _n  = function(v) { return parseFloat(v) || 0; };
-            var _s  = function(v) { return String(v || '').trim(); };
+            var newRecords = [];
+            var lastDia = null;
 
-            for (var i = dataStartRow; i < rows.length; i++) {
+            for (var i = dataStart; i < rows.length; i++) {
                 var row = rows[i];
-                if (!row || row.length < 4) continue;
+                if (!row || row.length < 2) continue;
 
-                var diaVal   = row[COL.DIA];
-                var turnoVal = _s(row[COL.TURNO]);  // "23hs" o "08hs" o "09hs"
+                var diaVal   = row[0];
+                var turnoVal = s(row[1]);
 
-                // Saltar filas sin día numérico (totales, DOMINGO, vacías)
-                if (typeof diaVal !== 'number' || diaVal < 1 || diaVal > 31) continue;
-                if (!turnoVal || (!turnoVal.includes('hs') && !turnoVal.includes('Hs'))) continue;
+                // Actualizar día actual (col A puede estar vacía en segunda fila del día)
+                if (typeof diaVal === 'number' && diaVal >= 1 && diaVal <= 31) {
+                    lastDia = Math.round(diaVal);
+                }
+                if (!lastDia) continue;
 
-                var dia   = String(Math.round(diaVal)).padStart(2, '0');
+                // Saltar filas sin turno válido (FERIADO, DOMINGO, vacías, totales)
+                var turnoUp = turnoVal.toUpperCase();
+                if (!turnoVal || turnoUp === 'FERIADO' || turnoUp === 'DOMINGO' ||
+                    turnoUp === 'DÍA' || turnoUp === 'DIA' || turnoUp === 'TURNO') continue;
+                if (!turnoVal.toLowerCase().includes('hs') && !turnoVal.match(/^\d+hs?$/i)) continue;
+
+                var dia   = String(lastDia).padStart(2, '0');
                 var fecha = anio + '-' + mesNum + '-' + dia;
 
-                // Determinar nombre del turno
-                var turnoNombre = turnoVal.includes('23') ? 'Noche'
-                                : turnoVal.includes('08') ? 'Dia'
-                                : turnoVal.includes('09') ? 'Dia'
-                                : 'Dia';
+                // Turno: 00hs y 23hs = Noche, 08hs y 09hs = Día
+                var turnoNum = parseInt(turnoVal.replace(/[^\d]/g,''));
+                var turnoNombre = (turnoNum === 0 || turnoNum === 23) ? 'Noche' : 'Dia';
 
-                var hsTrabajo  = _n(row[COL.HS_TRABAJO]);
+                var hsTrabajo = n(row[2]);
 
-                // ── PRIMARIA ─────────────────────────────────────────────
-                var opPrim    = _s(row[COL.OP_PRIM]);
-                var prodTurno = _n(row[COL.PROD_TURNO]);
-                var hsPerd    = _n(row[COL.HS_PERD_PRIM]);
-                var hsProd    = _n(row[COL.HS_PROD_PRIM]);
-                var prodH     = _n(row[COL.PROD_H_PRIM]);
+                // ── PRIMARIA ──────────────────────────────────────────────
+                var opPrim    = s(row[3]);
+                var prodTurno = n(row[4]);
+                var hsPerd    = n(row[7]);
+                var hsProd    = n(row[8]);
+                var prodXh    = n(row[9]);
 
-                if (prodTurno > 0 || hsTrabajo > 0) {
+                if (prodTurno > 0 || opPrim) {
                     newRecords.push({
-                        fecha:      fecha,
-                        sector:     'Planta Primaria',
-                        turno:      turnoNombre,
-                        operario:   opPrim,
-                        tn:         prodTurno,
-                        hrs:        hsTrabajo,
-                        hrsPerdidas: hsPerd,
-                        prodXhora:  prodH,
-                        hsProd:     hsProd,
-                        estado:     'Normal',
-                        fromExcel:  true
+                        fecha: fecha, sector: 'Planta Primaria',
+                        turno: turnoNombre, operario: opPrim,
+                        tn: prodTurno, hrs: hsTrabajo,
+                        hrsPerdidas: hsPerd, hsProd: hsProd, prodXhora: prodXh,
+                        estado: 'Normal', fromExcel: true
                     });
                 }
 
-                // ── PLANTA 1 ─────────────────────────────────────────────
-                var opP1    = _s(row[COL.OP_P1]);
-                var hsN1560 = _n(row[COL.HS_N1560]);
-                var hsHP400 = _n(row[COL.HS_HP400]);
-                var hs44FC  = _n(row[COL.HS_44FC]);
-                var hsCta34 = _n(row[COL.HS_CTA34]);
-                var hsCta25 = _n(row[COL.HS_CTA25]);
-                var hsTotP1 = hsN1560 + hsHP400 + hs44FC + hsCta34 + hsCta25;
+                // ── PLANTA 1 ──────────────────────────────────────────────
+                var opP1    = s(row[10]);
+                var hsN1560 = n(row[11]);
+                var hsHP400 = n(row[12]);
+                var hs44FC  = n(row[13]);
+                var hsCta34 = n(row[14]);
+                var hsCta25 = n(row[15]);
 
-                if (hsTotP1 > 0 || opP1) {
+                if (opP1 || (hsN1560 + hsHP400 + hs44FC + hsCta34 + hsCta25) > 0) {
                     newRecords.push({
-                        fecha:      fecha,
-                        sector:     'Planta 1',
-                        turno:      turnoNombre,
-                        operario:   opP1,
-                        tn:         0,
-                        hrs:        hsTrabajo,
-                        hrsPerdidas: 0,
-                        maquinas: {
-                            n1560: hsN1560,
-                            hp400: hsHP400,
-                            fc44:  hs44FC,
-                            cta34: hsCta34,
-                            cta25: hsCta25
-                        },
-                        estado:     'Normal',
-                        fromExcel:  true
+                        fecha: fecha, sector: 'Planta 1',
+                        turno: turnoNombre, operario: opP1,
+                        tn: 0, hrs: hsTrabajo, hrsPerdidas: 0,
+                        maquinas: { n1560:hsN1560, hp400:hsHP400, fc44:hs44FC, cta34:hsCta34, cta25:hsCta25 },
+                        estado: 'Normal', fromExcel: true
                     });
                 }
 
-                // ── PLANTA 2 ─────────────────────────────────────────────
-                var opP2     = _s(row[COL.OP_P2]);
-                var tnSved   = _n(row[COL.TN_SVEDALA]);
-                var hsSved   = _n(row[COL.HS_SVEDALA]);
-                var hsGP100  = _n(row[COL.HS_GP100]);
-                var hsHP200  = _n(row[COL.HS_HP200]);
-                var alim9    = _n(row[COL.ALIM9]);
-                var alim18   = _n(row[COL.ALIM18]);
-                var hsTotP2  = hsSved + hsGP100 + hsHP200;
+                // ── PLANTA 2 ──────────────────────────────────────────────
+                var opP2    = s(row[16]);
+                var tnSved  = n(row[17]);
+                var hsSved  = n(row[18]);
+                var hsGP100 = n(row[19]);
+                var hsHP200 = n(row[20]);
+                var alim9   = n(row[21]);
+                var alim18  = n(row[22]);
 
-                if (hsTotP2 > 0 || tnSved > 0 || opP2) {
+                if (opP2 || tnSved > 0 || (hsSved + hsGP100 + hsHP200) > 0) {
                     newRecords.push({
-                        fecha:      fecha,
-                        sector:     'Planta 2',
-                        turno:      turnoNombre,
-                        operario:   opP2,
-                        tn:         tnSved,
-                        hrs:        hsTrabajo,
-                        hrsPerdidas: 0,
-                        maquinas: {
-                            svedala: hsSved,
-                            gp100:   hsGP100,
-                            hp200:   hsHP200
-                        },
-                        alimentacion: { alim9: alim9, alim18: alim18 },
-                        estado:     'Normal',
-                        fromExcel:  true
+                        fecha: fecha, sector: 'Planta 2',
+                        turno: turnoNombre, operario: opP2,
+                        tn: tnSved, hrs: hsTrabajo, hrsPerdidas: 0,
+                        maquinas: { svedala:hsSved, gp100:hsGP100, hp200:hsHP200 },
+                        alimentacion: { alim9:alim9, alim18:alim18 },
+                        estado: 'Normal', fromExcel: true
                     });
                 }
             }
 
             if (newRecords.length === 0) {
-                if (statusEl) {
-                    statusEl.style.background = 'rgba(245,158,11,0.15)';
-                    statusEl.style.border = '1px solid var(--warning)';
-                    statusEl.textContent = '⚠️ No se encontraron datos para ' + mesActual + ' ' + currentYear +
-                        '. Verificá que la hoja del mes esté seleccionada.';
-                }
+                setStatus('⚠️ No se encontraron datos válidos en "' + sheetName + '". Hoja encontrada OK, pero sin registros de turno.', 'warn');
                 return;
             }
 
-            // Eliminar registros Excel del mes actual y reemplazar
+            // Reemplazar registros Excel del mes actual
             appState.data.produccion = (appState.data.produccion || []).filter(function(r) {
                 if (!r.fromExcel) return true;
                 return !(getMonthSafe(r.fecha) === currentMonth && getYearSafe(r.fecha) === currentYear);
@@ -730,48 +687,18 @@ window.procesarExcelProduccion = function(inputEl) {
             var prim = newRecords.filter(function(r){ return r.sector === 'Planta Primaria'; }).length;
             var p1   = newRecords.filter(function(r){ return r.sector === 'Planta 1'; }).length;
             var p2   = newRecords.filter(function(r){ return r.sector === 'Planta 2'; }).length;
+            setStatus('✅ ' + newRecords.length + ' registros de "' + sheetName + '" — Primaria: ' + prim + ' · P1: ' + p1 + ' · P2: ' + p2, 'ok');
 
-            if (statusEl) {
-                statusEl.style.background = 'rgba(34,197,94,0.15)';
-                statusEl.style.border = '1px solid var(--success)';
-                statusEl.textContent = '✅ ' + newRecords.length + ' turnos importados de "' + sheetName +
-                    '" — Primaria: ' + prim + ' · Planta 1: ' + p1 + ' · Planta 2: ' + p2;
-            }
             if (typeof renderTurnosPanel === 'function') renderTurnosPanel();
 
         } catch(err) {
             console.error('[ProdImport]', err);
-            if (statusEl) {
-                statusEl.style.background = 'rgba(239,68,68,0.15)';
-                statusEl.style.border = '1px solid var(--danger)';
-                statusEl.textContent = '❌ Error: ' + err.message;
-            }
+            setStatus('❌ Error: ' + err.message, 'err');
         }
     };
     reader.readAsArrayBuffer(file);
 };
 
-
-// Alias para el filtro global
-window.updateDashboardFromFilter = function() {
-    const filter = document.getElementById('global-month-filter');
-    if (!filter || !filter.value) return;
-    const [y, m] = filter.value.split('-');
-    currentYear = parseInt(y);
-    currentMonth = parseInt(m) - 1;
-    prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
-    localStorage.setItem('guerrico-mes-activo', filter.value);
-    syncAndRefreshData();
-};
-
-window.limpiarImportProduccion = function() {
-    const fileEl = document.getElementById('file-produccion');
-    if (fileEl) fileEl.value = '';
-    const statusEl = document.getElementById('prod-import-status');
-    if (statusEl) { statusEl.style.display = 'none'; statusEl.textContent = ''; }
-    const panel = document.getElementById('prod-turnos-panel');
-    if (panel) panel.style.display = 'none';
-};
 
 window.renderTurnosPanel = function(records) {
     var panel = document.getElementById('prod-turnos-panel');
