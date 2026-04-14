@@ -507,110 +507,250 @@ window.sincronizarOneDrive = async function() {
 };
 // Mantenimiento Pesado y Liviano Excel
 window.procesarExcelProduccion = function(inputEl) {
-    const file = (inputEl instanceof File) ? inputEl
-               : (inputEl?.files?.[0]) ?? document.getElementById('file-produccion')?.files[0];
-    if(!file) return;
+    var file = (inputEl instanceof File) ? inputEl
+             : (inputEl && inputEl.files && inputEl.files[0])
+               ? inputEl.files[0]
+               : (document.getElementById('file-produccion') || {files:[]}).files[0];
+    if (!file) return;
 
-    const statusEl = document.getElementById('prod-import-status');
-    if (statusEl) { statusEl.style.display = 'flex'; statusEl.style.background = 'rgba(59,130,246,0.15)'; statusEl.style.border = '1px solid var(--accent)'; statusEl.textContent = '⏳ Procesando Excel...'; }
+    var statusEl = document.getElementById('prod-import-status');
+    if (statusEl) {
+        statusEl.style.display = 'flex';
+        statusEl.style.background = 'rgba(59,130,246,0.15)';
+        statusEl.style.border = '1px solid var(--accent)';
+        statusEl.textContent = '⏳ Procesando Excel...';
+    }
 
-    const reader = new FileReader();
+    var reader = new FileReader();
     reader.onload = function(e) {
         try {
-            const data = new Uint8Array(e.target.result);
-            const wb = XLSX.read(data, {type:'array'});
-            
-            // Try to find sheet for current month
-            const mesesES = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
-            const mesActual = mesesES[currentMonth];
-            let sheetName = wb.SheetNames.find(s => s.toUpperCase().includes(mesActual)) || wb.SheetNames[0];
-            const sheet = wb.Sheets[sheetName];
-            const json = XLSX.utils.sheet_to_json(sheet, {header:1});
+            var data = new Uint8Array(e.target.result);
+            var wb   = XLSX.read(data, {type:'array'});
 
-            if (json.length < 2) {
-                if (statusEl) { statusEl.style.background = 'rgba(239,68,68,0.15)'; statusEl.style.border = '1px solid var(--danger)'; statusEl.textContent = '❌ El archivo no tiene datos válidos'; }
-                return;
+            // Buscar hoja del mes actual
+            var mesesES = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO',
+                           'JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+            var mesActual = mesesES[currentMonth];
+            var sheetName = wb.SheetNames.find(function(s) {
+                return s.toUpperCase().includes(mesActual);
+            }) || wb.SheetNames[0];
+            var sheet = wb.Sheets[sheetName];
+
+            // Leer como array de arrays con header numérico
+            var rows = XLSX.utils.sheet_to_json(sheet, {header:1, defval:''});
+
+            // ── Estructura del Excel Guerrico ──────────────────────────────
+            // Fila 0 (row 1): Adolfo Guerrico S.A.
+            // Fila 1 (row 2): Título "Produccion Villa Monica - MES AÑO"
+            // Fila 2 (row 3): vacía
+            // Fila 3 (row 4): cabeceras grupo (PRIMARIA / PLANTA 1 / PLANTA 2)
+            // Fila 4 (row 5): sub-cabeceras (Día, Turno, Hs trabajo, Operador, Prod turno, ...)
+            // Fila 5+ (rows 6+): datos — 2 filas por día (23hs + 08hs/09hs)
+            //
+            // Columnas (índice 0-based):
+            //   1=Día(B)  2=Turno(C)  3=Hs trabajo(D)
+            //   PRIMARIA:  4=Operador(E)  5=Prod turno(F)  6=Prod día(G)
+            //              7=Prog mes(H)  8=Hs perdid(I)   9=Hs Prod(J)  10=Prod/h(K)
+            //   PLANTA 1:  11=Operador(L) 12=HS N1560(M)  13=HS HP400(N)
+            //              14=HS 44FC(O)  15=HS cta34(P)  16=HS cta25(Q)
+            //   PLANTA 2:  17=Operador(R) 18=Tn Primaria Svedala(S)
+            //              19=HS Prim Svedala(T) 20=HS Secund GP100(U)
+            //              21=Hs Terciaria HP200(V) 22=Aliment9(W) 23=Aliment18(X)
+
+            var COL = {
+                DIA:            1,
+                TURNO:          2,
+                HS_TRABAJO:     3,
+                // PRIMARIA
+                OP_PRIM:        4,
+                PROD_TURNO:     5,
+                PROD_DIA:       6,
+                PROG_MES:       7,
+                HS_PERD_PRIM:   8,
+                HS_PROD_PRIM:   9,
+                PROD_H_PRIM:    10,
+                // PLANTA 1
+                OP_P1:          11,
+                HS_N1560:       12,
+                HS_HP400:       13,
+                HS_44FC:        14,
+                HS_CTA34:       15,
+                HS_CTA25:       16,
+                // PLANTA 2
+                OP_P2:          17,
+                TN_SVEDALA:     18,
+                HS_SVEDALA:     19,
+                HS_GP100:       20,
+                HS_HP200:       21,
+                ALIM9:          22,
+                ALIM18:         23
+            };
+
+            var anio = currentYear;
+            var mesNum = String(currentMonth + 1).padStart(2, '0');
+            var newRecords = [];
+
+            // Detectar fila de inicio de datos (primera fila con número de día en col B)
+            var dataStartRow = 5; // por defecto fila 6 (index 5)
+            for (var r = 3; r < Math.min(rows.length, 15); r++) {
+                var cellDia = rows[r][COL.DIA];
+                if (typeof cellDia === 'number' && cellDia >= 1 && cellDia <= 31) {
+                    dataStartRow = r;
+                    break;
+                }
             }
 
-            const headers = json[0].map(h => String(h || '').trim().toUpperCase());
-            let newRecords = [];
+            var _n  = function(v) { return parseFloat(v) || 0; };
+            var _s  = function(v) { return String(v || '').trim(); };
 
-            for (let i = 1; i < json.length; i++) {
-                const row = json[i];
-                if (!row || row.length === 0) continue;
+            for (var i = dataStartRow; i < rows.length; i++) {
+                var row = rows[i];
+                if (!row || row.length < 4) continue;
 
-                const getCol = (names) => {
-                    for (const n of names) {
-                        const idx = headers.findIndex(h => h.includes(n));
-                        if (idx >= 0 && row[idx] !== undefined && row[idx] !== '') return row[idx];
-                    }
-                    return null;
-                };
+                var diaVal   = row[COL.DIA];
+                var turnoVal = _s(row[COL.TURNO]);  // "23hs" o "08hs" o "09hs"
 
-                const fechaRaw = getCol(['FECHA','DATE']);
-                let fecha = '';
-                if (fechaRaw) {
-                    if (typeof fechaRaw === 'number') {
-                        // Excel serial date
-                        const d = new Date(Math.round((fechaRaw - 25569) * 86400 * 1000));
-                        fecha = d.toISOString().split('T')[0];
-                    } else {
-                        fecha = String(fechaRaw).trim();
-                        // Normalize DD/MM/YY or DD/MM/YYYY
-                        if (fecha.includes('/')) {
-                            const p = fecha.split('/');
-                            if (p.length === 3) fecha = (p[2].length === 2 ? '20'+p[2] : p[2]) + '-' + p[1].padStart(2,'0') + '-' + p[0].padStart(2,'0');
-                        }
-                    }
+                // Saltar filas sin día numérico (totales, DOMINGO, vacías)
+                if (typeof diaVal !== 'number' || diaVal < 1 || diaVal > 31) continue;
+                if (!turnoVal || (!turnoVal.includes('hs') && !turnoVal.includes('Hs'))) continue;
+
+                var dia   = String(Math.round(diaVal)).padStart(2, '0');
+                var fecha = anio + '-' + mesNum + '-' + dia;
+
+                // Determinar nombre del turno
+                var turnoNombre = turnoVal.includes('23') ? 'Noche'
+                                : turnoVal.includes('08') ? 'Dia'
+                                : turnoVal.includes('09') ? 'Dia'
+                                : 'Dia';
+
+                var hsTrabajo  = _n(row[COL.HS_TRABAJO]);
+
+                // ── PRIMARIA ─────────────────────────────────────────────
+                var opPrim    = _s(row[COL.OP_PRIM]);
+                var prodTurno = _n(row[COL.PROD_TURNO]);
+                var hsPerd    = _n(row[COL.HS_PERD_PRIM]);
+                var hsProd    = _n(row[COL.HS_PROD_PRIM]);
+                var prodH     = _n(row[COL.PROD_H_PRIM]);
+
+                if (prodTurno > 0 || hsTrabajo > 0) {
+                    newRecords.push({
+                        fecha:      fecha,
+                        sector:     'Planta Primaria',
+                        turno:      turnoNombre,
+                        operario:   opPrim,
+                        tn:         prodTurno,
+                        hrs:        hsTrabajo,
+                        hrsPerdidas: hsPerd,
+                        prodXhora:  prodH,
+                        hsProd:     hsProd,
+                        estado:     'Normal',
+                        fromExcel:  true
+                    });
                 }
-                if (!fecha || !fecha.match(/^\d{4}-/)) continue;
-                const mes = parseInt(fecha.split('-')[1]) - 1;
-                if (mes !== currentMonth) continue;
 
-                const turno = String(getCol(['TURNO','SHIFT']) || 'Dia').trim();
-                const tnTotal = parseFloat(getCol(['TN','TON','TONELADAS','PRODUCCION']) || 0);
-                const hs = parseFloat(getCol(['HS','HORAS','TRABAJO']) || 0);
-                const obs = String(getCol(['OBS','OBSERVACION','NOTA']) || '').trim();
+                // ── PLANTA 1 ─────────────────────────────────────────────
+                var opP1    = _s(row[COL.OP_P1]);
+                var hsN1560 = _n(row[COL.HS_N1560]);
+                var hsHP400 = _n(row[COL.HS_HP400]);
+                var hs44FC  = _n(row[COL.HS_44FC]);
+                var hsCta34 = _n(row[COL.HS_CTA34]);
+                var hsCta25 = _n(row[COL.HS_CTA25]);
+                var hsTotP1 = hsN1560 + hsHP400 + hs44FC + hsCta34 + hsCta25;
 
-                if (tnTotal <= 0 && hs <= 0) continue;
+                if (hsTotP1 > 0 || opP1) {
+                    newRecords.push({
+                        fecha:      fecha,
+                        sector:     'Planta 1',
+                        turno:      turnoNombre,
+                        operario:   opP1,
+                        tn:         0,
+                        hrs:        hsTrabajo,
+                        hrsPerdidas: 0,
+                        maquinas: {
+                            n1560: hsN1560,
+                            hp400: hsHP400,
+                            fc44:  hs44FC,
+                            cta34: hsCta34,
+                            cta25: hsCta25
+                        },
+                        estado:     'Normal',
+                        fromExcel:  true
+                    });
+                }
 
-                newRecords.push({
-                    fecha, sector: 'Planta Primaria', turno, operario: '',
-                    tn: tnTotal, hrs: hs, hrsPerdidas: Math.max(0, 9 - hs),
-                    estado: 'Normal', obs, fromExcel: true
-                });
+                // ── PLANTA 2 ─────────────────────────────────────────────
+                var opP2     = _s(row[COL.OP_P2]);
+                var tnSved   = _n(row[COL.TN_SVEDALA]);
+                var hsSved   = _n(row[COL.HS_SVEDALA]);
+                var hsGP100  = _n(row[COL.HS_GP100]);
+                var hsHP200  = _n(row[COL.HS_HP200]);
+                var alim9    = _n(row[COL.ALIM9]);
+                var alim18   = _n(row[COL.ALIM18]);
+                var hsTotP2  = hsSved + hsGP100 + hsHP200;
+
+                if (hsTotP2 > 0 || tnSved > 0 || opP2) {
+                    newRecords.push({
+                        fecha:      fecha,
+                        sector:     'Planta 2',
+                        turno:      turnoNombre,
+                        operario:   opP2,
+                        tn:         tnSved,
+                        hrs:        hsTrabajo,
+                        hrsPerdidas: 0,
+                        maquinas: {
+                            svedala: hsSved,
+                            gp100:   hsGP100,
+                            hp200:   hsHP200
+                        },
+                        alimentacion: { alim9: alim9, alim18: alim18 },
+                        estado:     'Normal',
+                        fromExcel:  true
+                    });
+                }
             }
 
-            if (newRecords.length > 0) {
-                // Remove existing excel records for this month to avoid duplicates
-                appState.data.produccion = appState.data.produccion.filter(r => {
-                    if (!r.fromExcel) return true;
-                    const m = getMonthSafe(r.fecha);
-                    const y = getYearSafe(r.fecha);
-                    return !(m === currentMonth && y === currentYear);
-                });
-                appState.data.produccion.push(...newRecords);
-                syncAndRefreshData();
-                if (statusEl) {
-                    statusEl.style.background = 'rgba(34,197,94,0.15)';
-                    statusEl.style.border = '1px solid var(--success)';
-                    statusEl.textContent = '✅ ' + newRecords.length + ' registros importados de "' + sheetName + '"';
-                }
-                if (typeof renderTurnosPanel === 'function') renderTurnosPanel(newRecords);
-            } else {
+            if (newRecords.length === 0) {
                 if (statusEl) {
                     statusEl.style.background = 'rgba(245,158,11,0.15)';
                     statusEl.style.border = '1px solid var(--warning)';
-                    statusEl.textContent = '⚠️ No se encontraron registros para ' + mesesES[currentMonth] + ' ' + currentYear + ' en la hoja "' + sheetName + '"';
+                    statusEl.textContent = '⚠️ No se encontraron datos para ' + mesActual + ' ' + currentYear +
+                        '. Verificá que la hoja del mes esté seleccionada.';
                 }
+                return;
             }
+
+            // Eliminar registros Excel del mes actual y reemplazar
+            appState.data.produccion = (appState.data.produccion || []).filter(function(r) {
+                if (!r.fromExcel) return true;
+                return !(getMonthSafe(r.fecha) === currentMonth && getYearSafe(r.fecha) === currentYear);
+            });
+            appState.data.produccion = appState.data.produccion.concat(newRecords);
+            syncAndRefreshData();
+
+            var prim = newRecords.filter(function(r){ return r.sector === 'Planta Primaria'; }).length;
+            var p1   = newRecords.filter(function(r){ return r.sector === 'Planta 1'; }).length;
+            var p2   = newRecords.filter(function(r){ return r.sector === 'Planta 2'; }).length;
+
+            if (statusEl) {
+                statusEl.style.background = 'rgba(34,197,94,0.15)';
+                statusEl.style.border = '1px solid var(--success)';
+                statusEl.textContent = '✅ ' + newRecords.length + ' turnos importados de "' + sheetName +
+                    '" — Primaria: ' + prim + ' · Planta 1: ' + p1 + ' · Planta 2: ' + p2;
+            }
+            if (typeof renderTurnosPanel === 'function') renderTurnosPanel();
+
         } catch(err) {
-            console.error('Error procesando Excel produccion:', err);
-            if (statusEl) { statusEl.style.background = 'rgba(239,68,68,0.15)'; statusEl.style.border = '1px solid var(--danger)'; statusEl.textContent = '❌ Error: ' + err.message; }
+            console.error('[ProdImport]', err);
+            if (statusEl) {
+                statusEl.style.background = 'rgba(239,68,68,0.15)';
+                statusEl.style.border = '1px solid var(--danger)';
+                statusEl.textContent = '❌ Error: ' + err.message;
+            }
         }
     };
     reader.readAsArrayBuffer(file);
 };
+
 
 // Alias para el filtro global
 window.updateDashboardFromFilter = function() {
@@ -634,12 +774,12 @@ window.limpiarImportProduccion = function() {
 };
 
 window.renderTurnosPanel = function(records) {
-    const panel = document.getElementById('prod-turnos-panel');
-    const tbody = document.getElementById('prod-turnos-tbody');
-    const count = document.getElementById('prod-turnos-count');
+    var panel = document.getElementById('prod-turnos-panel');
+    var tbody = document.getElementById('prod-turnos-tbody');
+    var count = document.getElementById('prod-turnos-count');
     if (!panel || !tbody) return;
 
-    const data = records || appState.data.produccion.filter(r => {
+    var data = records || (appState.data.produccion || []).filter(function(r) {
         return r.fromExcel && getMonthSafe(r.fecha) === currentMonth && getYearSafe(r.fecha) === currentYear;
     });
 
@@ -647,21 +787,66 @@ window.renderTurnosPanel = function(records) {
     panel.style.display = 'block';
     if (count) count.textContent = data.length + ' registros';
 
-    const operarios = (appState.data.config.operarios || []);
-    const opts = operarios.map(op => '<option value="' + op + '">' + op + '</option>').join('');
+    // Agrupar por fecha + turno para mostrar las 3 plantas juntas
+    var grupos = {};
+    data.forEach(function(r) {
+        var key = r.fecha + '_' + r.turno;
+        if (!grupos[key]) grupos[key] = { fecha: r.fecha, turno: r.turno, primaria: null, p1: null, p2: null };
+        if (r.sector === 'Planta Primaria') grupos[key].primaria = r;
+        if (r.sector === 'Planta 1')        grupos[key].p1 = r;
+        if (r.sector === 'Planta 2')        grupos[key].p2 = r;
+    });
 
-    tbody.innerHTML = data.map((r, i) => {
-        return '<tr>' +
-            '<td>' + r.fecha + '</td>' +
-            '<td>' + r.turno + '</td>' +
-            '<td>' + r.tn.toLocaleString('es-AR') + ' Tn</td>' +
-            '<td>' + r.hrs + ' hs</td>' +
-            '<td style="color:var(--danger);">' + (r.hrsPerdidas || 0).toFixed(1) + ' hs</td>' +
-            '<td>' + r.sector + '</td>' +
-            '<td>' + (r.obs || '—') + '</td>' +
-            '<td><select class="op-selector" data-idx="' + i + '" style="width:100%;padding:3px 5px;border-radius:5px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.78rem;"><option value="">Sin asignar</option>' + opts + '</select></td>' +
+    var keys = Object.keys(grupos).sort();
+    var rows = keys.map(function(k) {
+        var g = grupos[k];
+        var prim = g.primaria || {};
+        var p1   = g.p1 || {};
+        var p2   = g.p2 || {};
+
+        // Horas máquinas P1
+        var maq1 = p1.maquinas || {};
+        var maq1str = [
+            maq1.n1560 ? 'N1560:' + maq1.n1560 + 'hs' : '',
+            maq1.hp400 ? 'HP400:' + maq1.hp400 + 'hs' : '',
+            maq1.fc44  ? '44FC:' + maq1.fc44 + 'hs'   : '',
+            maq1.cta34 ? 'Cta34:' + maq1.cta34 + 'hs' : '',
+            maq1.cta25 ? 'Cta25:' + maq1.cta25 + 'hs' : ''
+        ].filter(Boolean).join(' · ') || '—';
+
+        // Horas máquinas P2
+        var maq2 = p2.maquinas || {};
+        var maq2str = [
+            maq2.svedala ? 'Sved:' + maq2.svedala + 'hs' : '',
+            maq2.gp100   ? 'GP100:' + maq2.gp100 + 'hs' : '',
+            maq2.hp200   ? 'HP200:' + maq2.hp200 + 'hs' : ''
+        ].filter(Boolean).join(' · ') || '—';
+
+        var turnoColor = g.turno === 'Noche'
+            ? 'background:rgba(99,102,241,0.08);'
+            : 'background:rgba(251,191,36,0.06);';
+
+        return '<tr style="' + turnoColor + '">' +
+            '<td style="font-weight:700;white-space:nowrap;">' + g.fecha + '</td>' +
+            '<td><span style="font-size:0.7rem;padding:2px 6px;border-radius:4px;background:' +
+                (g.turno === 'Noche' ? 'rgba(99,102,241,0.2);color:#a5b4fc' : 'rgba(251,191,36,0.2);color:#f59e0b') +
+            ';">' + g.turno + '</span></td>' +
+            // PRIMARIA
+            '<td style="color:var(--warning);font-weight:700;">' + ((prim.operario || '—')) + '</td>' +
+            '<td style="color:var(--warning);">' + ((prim.tn || 0).toLocaleString('es-AR')) + ' Tn</td>' +
+            '<td>' + (prim.hrs || '—') + ' hs</td>' +
+            '<td style="color:var(--danger);font-size:0.75rem;">' + ((prim.hrsPerdidas || 0).toFixed(1)) + ' hs</td>' +
+            // PLANTA 1
+            '<td style="color:var(--success);font-weight:700;">' + (p1.operario || '—') + '</td>' +
+            '<td style="font-size:0.68rem;color:var(--text-dim);">' + maq1str + '</td>' +
+            // PLANTA 2
+            '<td style="color:#f97316;font-weight:700;">' + (p2.operario || '—') + '</td>' +
+            '<td>' + ((p2.tn || 0).toLocaleString('es-AR')) + ' Tn</td>' +
+            '<td style="font-size:0.68rem;color:var(--text-dim);">' + maq2str + '</td>' +
         '</tr>';
     }).join('');
+
+    tbody.innerHTML = rows;
 };
 
 window.guardarOperariosAsignados = function() {

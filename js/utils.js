@@ -145,3 +145,115 @@ window.renderLitrosHistorial = function() {
                    '</div>';
         }).join('') + '</div>';
 };
+
+// ══════════════════════════════════════════════════════════════
+// GOOGLE SHEETS SYNC
+// ══════════════════════════════════════════════════════════════
+
+window.guardarSheetsUrl = function() {
+    var url = (document.getElementById('sheets-script-url') || {}).value || '';
+    if (url) {
+        localStorage.setItem('guerrico-sheets-url', url);
+        _setSyncBadge('URL guardada ✓', 'var(--success)');
+    }
+};
+
+function _getSheetsUrl() {
+    var input = (document.getElementById('sheets-script-url') || {}).value || '';
+    var stored = localStorage.getItem('guerrico-sheets-url') || '';
+    return input || stored;
+}
+
+function _setSyncBadge(text, color) {
+    var el = document.getElementById('sync-status-badge');
+    if (!el) return;
+    el.textContent = text;
+    el.style.background = color ? 'rgba(0,0,0,0.1)' : 'rgba(128,128,128,0.1)';
+    el.style.color = color || 'var(--text-dim)';
+}
+
+function _setSyncLog(text, ok) {
+    var el = document.getElementById('sync-log');
+    if (!el) return;
+    el.style.display = 'block';
+    el.style.background = ok ? 'rgba(74,222,128,0.1)' : 'rgba(239,68,68,0.1)';
+    el.style.color = ok ? 'var(--success)' : 'var(--danger)';
+    el.textContent = text;
+}
+
+window.sincronizarConSheets = function() {
+    var url = _getSheetsUrl();
+    if (!url) {
+        alert('Primero pegá la URL del Apps Script en el campo de arriba.');
+        return;
+    }
+    _setSyncBadge('Subiendo...', 'var(--warning)');
+    var datos = JSON.stringify(appState.data);
+    
+    fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: datos
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(res) {
+        if (res.ok) {
+            _setSyncBadge('✓ Sincronizado ' + new Date().toLocaleTimeString('es-AR'), 'var(--success)');
+            _setSyncLog('✅ Datos subidos correctamente a Google Sheets — ' + res.ts, true);
+            localStorage.setItem('guerrico-last-sync', new Date().toISOString());
+        } else {
+            throw new Error(res.error || 'Error desconocido');
+        }
+    })
+    .catch(function(err) {
+        _setSyncBadge('Error', 'var(--danger)');
+        _setSyncLog('❌ Error al subir: ' + err.message, false);
+    });
+};
+
+window.descargarDeSheets = function() {
+    var url = _getSheetsUrl();
+    if (!url) {
+        alert('Primero pegá la URL del Apps Script en el campo de arriba.');
+        return;
+    }
+    _setSyncBadge('Descargando...', 'var(--warning)');
+    
+    fetch(url + '?ts=' + Date.now())
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.error) throw new Error(data.error);
+        if (!data || Object.keys(data).length === 0) {
+            _setSyncLog('⚠️ La planilla está vacía. Subí los datos primero desde la PC.', false);
+            _setSyncBadge('Sin datos', 'var(--warning)');
+            return;
+        }
+        // Merge: keep local data structure, overwrite with remote
+        Object.assign(appState.data, data);
+        localStorage.setItem('guerrico-db', JSON.stringify(appState.data));
+        if (typeof syncAndRefreshData === 'function') syncAndRefreshData();
+        _setSyncBadge('✓ Datos actualizados', 'var(--success)');
+        _setSyncLog('✅ Datos descargados de Google Sheets correctamente', true);
+    })
+    .catch(function(err) {
+        _setSyncBadge('Error', 'var(--danger)');
+        _setSyncLog('❌ Error al descargar: ' + err.message + '. Verificá que la URL sea correcta y que el script esté publicado como "App web pública".', false);
+    });
+};
+
+// Cargar URL guardada al iniciar
+window.addEventListener('DOMContentLoaded', function() {
+    var stored = localStorage.getItem('guerrico-sheets-url') || '';
+    var input = document.getElementById('sheets-script-url');
+    if (input && stored) {
+        input.value = stored;
+        _setSyncBadge('URL configurada ✓', 'var(--success)');
+    }
+    
+    // Mostrar última sync
+    var lastSync = localStorage.getItem('guerrico-last-sync');
+    if (lastSync && stored) {
+        var d = new Date(lastSync);
+        _setSyncBadge('Último sync: ' + d.toLocaleDateString('es-AR') + ' ' + d.toLocaleTimeString('es-AR'), 'var(--success)');
+    }
+});
