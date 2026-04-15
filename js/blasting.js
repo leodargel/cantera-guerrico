@@ -44,7 +44,230 @@ window.calcularCruceVoladuras = function() {
     renderCruceKPIs(cruces);
     renderCruceTabla(cruces);
     renderCruceGraficos(cruces);
+    updateBlastingDashboard(cruces);
 };
+
+/**
+ * toggleBlastDrawer
+ * Opens or closes the registration drawer.
+ */
+window.toggleBlastDrawer = function(open) {
+    const drawer = document.getElementById('blast-drawer');
+    if (!drawer) return;
+    if (open) {
+        drawer.classList.add('active');
+        // Initial setup for the drawer
+        if (typeof updateBlastFrenteSelector === 'function') updateBlastFrenteSelector();
+        renderZonasDrawer();
+    } else {
+        drawer.classList.remove('active');
+    }
+};
+
+/**
+ * updateBlastingDashboard
+ * Orchestrates the visualization of the new modern dashboard elements.
+ */
+window.updateBlastingDashboard = function(cruces) {
+    if (!cruces || cruces.length === 0) return;
+    
+    // Get latest blast for "Detail Overlay"
+    const latest = cruces[cruces.length - 1]; // Assume last is newest if not sorted
+    const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    
+    setVal('current-blast-id', 'FRENTE: ' + (latest.frente || 'S/D'));
+    setVal('ov-blast-id', latest.fecha);
+    setVal('ov-explosive', latest.p80 > 0 ? 'ANFO / AG' : 'S/D');
+    setVal('ov-tonnage', latest.tnVol.toLocaleString('es-AR') + ' Tn');
+    setVal('ov-p80', latest.p80 > 0 ? latest.p80 + ' mm' : 'S/D');
+    
+    // Update individual charts
+    renderGranulometricCurve(latest);
+    renderEfficiencyTrends(cruces);
+    renderVibrationTrends(cruces);
+    
+    // Special Image handling if available
+    const muckpEl = document.getElementById('muckpile-img');
+    if (muckpEl && latest.foto) {
+        muckpEl.src = latest.foto;
+    }
+};
+
+function renderGranulometricCurve(latest) {
+    const ctx = document.getElementById('chart-granulometric');
+    if (!ctx) return;
+    const existing = Chart.getChart(ctx);
+    if (existing) existing.destroy();
+
+    // Data generation: Mock an S-curve based on P80
+    const p80 = latest.p80 || 150;
+    const labels = [0, 50, 100, 150, 200, 250, 300, 350, 400];
+    // Simple logic for a sigmoidal-like cumulative curve
+    const data = labels.map(size => {
+        if (size === 0) return 0;
+        const val = 100 / (1 + Math.exp(-0.02 * (size - p80)));
+        return Math.min(100, Math.round(val));
+    });
+
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels.map(l => l + 'mm'),
+            datasets: [{
+                label: 'Cumulative Passing %',
+                data: data,
+                borderColor: 'var(--accent)',
+                backgroundColor: 'rgba(217, 119, 6, 0.1)',
+                fill: true,
+                tension: 0.4,
+                pointRadius: 3,
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { min: 0, max: 100, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { font: { size: 10 }, color: '#94a3b8' } },
+                x: { grid: { display: false }, ticks: { font: { size: 10 }, color: '#94a3b8' } }
+            }
+        }
+    });
+}
+
+function renderEfficiencyTrends(cruces) {
+    const ctx = document.getElementById('chart-explosive-efficiency');
+    if (!ctx) return;
+    const existing = Chart.getChart(ctx);
+    if (existing) existing.destroy();
+
+    const data = cruces.slice(-8); // Last 8 events
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: data.map(c => c.fecha.split('-')[2]),
+            datasets: [{
+                label: 'Kg/Tn',
+                data: data.map(c => c.tnVol > 0 ? (c.costo / c.tnVol).toFixed(2) : 0),
+                backgroundColor: 'rgba(74, 222, 128, 0.5)',
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { font: { size: 10 }, color: '#94a3b8' } },
+                x: { grid: { display: false }, ticks: { font: { size: 10 }, color: '#94a3b8' } }
+            }
+        }
+    });
+}
+
+function renderVibrationTrends(cruces) {
+    const ctx = document.getElementById('chart-vibration-trends');
+    if (!ctx) return;
+    const existing = Chart.getChart(ctx);
+    if (existing) existing.destroy();
+
+    const data = cruces.slice(-8);
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: data.map(c => c.fecha.split('-')[2]),
+            datasets: [{
+                label: 'VPP mm/s',
+                data: data.map(c => c.vpp || 0),
+                borderColor: 'var(--danger)',
+                backgroundColor: 'rgba(248, 113, 113, 0.1)',
+                fill: true,
+                tension: 0.4,
+                pointRadius: 2
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { font: { size: 10 }, color: '#94a3b8' } },
+                x: { grid: { display: false }, ticks: { font: { size: 10 }, color: '#94a3b8' } }
+            }
+        }
+    });
+}
+
+/**
+ * Logic for drawer form and actions
+ */
+window.guardarVoladuraDrawer = function() {
+    const val = (id) => document.getElementById(id).value;
+    const nova = {
+        fecha: val('blast-date-drawer'),
+        frente: val('blast-frente-drawer'),
+        tn: parseFloat(val('blast-tn-drawer')) || 0,
+        cost: parseFloat(val('blast-cost-drawer')) || 0,
+        kg: parseFloat(val('blast-kg-drawer')) || 0,
+        pozos: parseInt(val('blast-pozos-drawer')) || 0,
+        p80: parseFloat(val('blast-p80-drawer')) || 0,
+        vpp: parseFloat(val('blast-vpp-drawer')) || 0,
+        id: 'B' + Date.now().toString().slice(-4)
+    };
+
+    if (!nova.fecha || !nova.frente) { alert('Fecha y Frente son obligatorios.'); return; }
+
+    if(!appState.data.voladuras) appState.data.voladuras = [];
+    appState.data.voladuras.push(nova);
+    dataSync.save();
+    toggleBlastDrawer(false);
+    calcularCruceVoladuras();
+};
+
+window.previewFotoDrawer = function() {
+    const input = document.getElementById('blast-file-drawer');
+    const preview = document.getElementById('drawer-img-preview');
+    const img = document.getElementById('blast-img-drawer-preview');
+    
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            img.src = e.target.result;
+            preview.style.display = 'block';
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+};
+
+window.renderZonasDrawer = function() {
+    const container = document.getElementById('zonas-list-drawer');
+    if (!container) return;
+    container.innerHTML = (appState.data.zonas || []).map((z, i) => `
+        <div style="background:rgba(255,255,255,0.03); padding:8px 12px; border-radius:6px; display:flex; justify-content:space-between; align-items:center; border-left:3px solid ${z.color || 'var(--accent)'};">
+            <span style="font-size:0.8rem; font-weight:700; color:var(--text-main);">${z.nombre}</span>
+            <button onclick="eliminarZonaDrawer(${i})" style="background:transparent; color:var(--danger); padding:4px; cursor:pointer;"><i class="ph ph-trash"></i></button>
+        </div>
+    `).join('');
+};
+
+window.eliminarZonaDrawer = function(idx) {
+    if (confirm('¿Eliminar este frente?')) {
+        appState.data.zonas.splice(idx, 1);
+        dataSync.save();
+        renderZonasDrawer();
+        if (typeof updateBlastFrenteSelector === 'function') updateBlastFrenteSelector();
+    }
+};
+
+window.agregarZonaDrawer = function() {
+    const nom = document.getElementById('nueva-zona-nombre-drawer').value.trim();
+    if (!nom) return;
+    appState.data.zonas.push({ nombre: nom, color: '#d97706', lat: -36.9135, lng: -60.1460 });
+    document.getElementById('nueva-zona-nombre-drawer').value = '';
+    dataSync.save();
+    renderZonasDrawer();
+    if (typeof updateBlastFrenteSelector === 'function') updateBlastFrenteSelector();
+};
+
 
 function renderCruceKPIs(cruces) {
     var el = document.getElementById('cruce-kpis');

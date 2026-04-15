@@ -744,3 +744,106 @@ body.theme-light .op-sel {
 .ia-loading { display:flex; align-items:center; gap:10px; padding:16px; color:var(--purple); font-weight:700; }
 @keyframes iaSpin { to { transform: rotate(360deg); } }
 .ia-spinner { animation: iaSpin 1s linear infinite; display:inline-block; }
+/* ── MODERNE VOLADURAS Redesign ── */
+.blasting-dashboard {
+    animation: fadeIn 0.6s ease;
+}
+
+.side-stat-card {
+    background: rgba(22, 26, 24, 0.4) !important;
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(217, 119, 6, 0.1) !important;
+}
+
+.muckpile-container {
+    box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+    transition: transform 0.3s ease;
+}
+
+.muckpile-container:hover {
+    transform: scale(1.02);
+}
+
+/* Drawer overlay and content */
+.drawer-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 1500;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s, visibility 0.3s;
+}
+
+.drawer-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+#blast-drawer.active {
+    right: 0 !important;
+}
+
+/* Forms & inputs inside drawer */
+#form-blasting-drawer input:focus {
+    background: rgba(217, 119, 6, 0.05) !important;
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.1) !important;
+}
+
+.ai-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.65rem;
+    font-weight: 800;
+    color: var(--purple);
+    margin: 1.5rem 0 1rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.ai-divider::before, .ai-divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: rgba(167, 139, 250, 0.2);
+}
+
+/* Map HUD Customization */
+.modern-map-hud {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* Legend dots */
+.legend-item .dot {
+    box-shadow: 0 0 8px currentColor;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1300px) {
+    .blasting-grid {
+        grid-template-columns: 1fr !important;
+    }
+    .blasting-sidebar {
+        display: grid !important;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    #blast-drawer {
+        width: 100% !important;
+        right: -100% !important;
+    }
+}
