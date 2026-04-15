@@ -33,33 +33,7 @@ window.getYearSafe = function(dateStr) {
 
 // setupTheme and toggleTheme are defined in forms.js
 
-/**
- * setupMesFilter
- * Initializes the global month selector and updates global period on change.
- */
-window.setupMesFilter = function() {
-    const filter = document.getElementById('global-month-filter');
-    if(!filter) return;
-    
-    // Set default value to match starting state
-    const currentVal = `${window.currentYear}-${String(window.currentMonth + 1).padStart(2, '0')}`;
-    filter.value = currentVal;
-    
-    filter.addEventListener('change', function(e) {
-        const val = e.target.value; // Expected: YYYY-MM
-        const p = val.split('-');
-        if (p.length === 2) {
-            window.currentYear = parseInt(p[0]);
-            window.currentMonth = parseInt(p[1]) - 1;
-            window.prevMonth = window.currentMonth === 0 ? 11 : window.currentMonth - 1;
-            
-            console.log(`[Filter] Dashboard period adjusted to: ${window.currentMonth + 1}/${window.currentYear}`);
-            if (typeof syncAndRefreshData === 'function') {
-                syncAndRefreshData();
-            }
-        }
-    });
-};
+
 
 /**
  * Global Exports/Imports (Database Management)
@@ -256,4 +230,60 @@ window.addEventListener('DOMContentLoaded', function() {
         var d = new Date(lastSync);
         _setSyncBadge('Último sync: ' + d.toLocaleDateString('es-AR') + ' ' + d.toLocaleTimeString('es-AR'), 'var(--success)');
     }
+});
+
+// ══════════════════════════════════════════════════════════════
+// LIMPIAR PRODUCCIÓN DEL MES
+// ══════════════════════════════════════════════════════════════
+window.limpiarProduccionMes = function() {
+    var mesesES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+                   'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    var mesLabel = mesesES[currentMonth] + ' ' + currentYear;
+
+    var totalMes = (appState.data.produccion || []).filter(function(r) {
+        return getMonthSafe(r.fecha) === currentMonth &&
+               getYearSafe(r.fecha) === currentYear;
+    }).length;
+
+    if (totalMes === 0) {
+        var st = document.getElementById('limpiar-prod-status');
+        if (st) { st.style.display='block'; st.style.background='rgba(245,158,11,0.1)'; st.style.color='var(--warning)'; st.textContent='⚠️ No hay registros para ' + mesLabel; }
+        return;
+    }
+
+    if (!confirm('¿Borrar TODOS los ' + totalMes + ' registros de producción de ' + mesLabel + '?\n(Excel + manuales)')) return;
+
+    appState.data.produccion = (appState.data.produccion || []).filter(function(r) {
+        return !(getMonthSafe(r.fecha) === currentMonth && getYearSafe(r.fecha) === currentYear);
+    });
+
+    localStorage.setItem('guerrico-db', JSON.stringify(appState.data));
+    if (typeof syncAndRefreshData === 'function') syncAndRefreshData();
+
+    var st = document.getElementById('limpiar-prod-status');
+    if (st) {
+        st.style.display = 'block';
+        st.style.background = 'rgba(34,197,94,0.1)';
+        st.style.color = 'var(--success)';
+        st.textContent = '✅ Borrados ' + excelMes + ' registros de ' + mesLabel + '. Ahora podés reimportar el Excel.';
+    }
+};
+
+// Actualizar label del mes activo en el botón
+document.addEventListener('DOMContentLoaded', function() {
+    var mesesES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+                   'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    function updateLimpiarLabel() {
+        var el = document.getElementById('limpiar-prod-mes-label');
+        if (!el) return;
+        var cant = (appState.data.produccion || []).filter(function(r) {
+            return getMonthSafe(r.fecha) === currentMonth && getYearSafe(r.fecha) === currentYear;
+        }).length;
+        el.textContent = mesesES[currentMonth] + ' ' + currentYear + ' — ' + cant + ' registros Excel';
+    }
+    setTimeout(updateLimpiarLabel, 500);
+
+    // Also update when month changes
+    var filter = document.getElementById('global-month-filter');
+    if (filter) filter.addEventListener('change', function() { setTimeout(updateLimpiarLabel, 300); });
 });

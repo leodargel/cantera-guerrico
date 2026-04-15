@@ -53,8 +53,14 @@ window.updateGauges = function() {
         (appState.data.produccion || []).forEach(function(p) {
             var m = getMonthSafe(p.fecha), y = getYearSafe(p.fecha);
             if (p.sector === cfg.sector && m === currentMonth && y === currentYear) {
-                tnMes  += parseFloat(p.tn  || 0);
-                hrsMes += parseFloat(p.hrs || 0);
+                tnMes += parseFloat(p.tn || 0);
+                // For Planta 1 and 2: sum actual machine hours, not shift hours
+                if (p.maquinas) {
+                    var maqHrs = Object.values(p.maquinas).reduce(function(s,v){ return s + (parseFloat(v)||0); }, 0);
+                    hrsMes += maqHrs;
+                } else {
+                    hrsMes += parseFloat(p.hsProd || p.hrs || 0);
+                }
             }
         });
 

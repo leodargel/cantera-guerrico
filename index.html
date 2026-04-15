@@ -1258,22 +1258,10 @@ body.theme-light .tarea-badge { background: rgba(0,0,0,0.06); }
 
 <!-- ======== PRODUCCIÓN ======== -->
 <section id="produccion" class="view">
+    <div class="smart-summary-container"><div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;color:var(--accent);font-size:0.75rem;font-weight:700;text-transform:uppercase;"><i class="ph-fill ph-sparkle"></i> Resumen del Sector</div><p class="smart-text" style="font-size:0.95rem;color:var(--text-main);">Analizando...</p></div>
 
-    <!-- ── FILA 1: Resumen inteligente + Export ── -->
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.2rem;gap:1rem;flex-wrap:wrap;">
-        <div class="smart-summary-container" style="flex:1;min-width:200px;margin-bottom:0;">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;color:var(--accent);font-size:0.72rem;font-weight:700;text-transform:uppercase;"><i class="ph-fill ph-sparkle"></i> Resumen Operativo</div>
-            <p class="smart-text" style="font-size:0.88rem;color:var(--text-main);margin:0;">Analizando datos...</p>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">
-            <button onclick="generarReportePDF()" style="background:var(--purple);display:flex;align-items:center;gap:6px;padding:7px 14px;font-size:0.8rem;"><i class="ph ph-file-pdf"></i> PDF</button>
-        </div>
-    </div>
-
-    <!-- ── FILA 2: KPIs producción mes (5 tarjetas) ── -->
+    <!-- ── FILA 1: KPIs globales ── -->
     <div class="grid-kpi" style="margin-bottom:1.2rem;">
-
-        <!-- TOTAL PRODUCIDO -->
         <div class="kpi-card" style="border-top:3px solid var(--success);">
             <h4 style="color:var(--success);font-size:0.62rem;letter-spacing:1px;margin-bottom:6px;">TOTAL PRODUCIDO</h4>
             <div style="display:flex;align-items:baseline;gap:5px;">
@@ -1283,23 +1271,10 @@ body.theme-light .tarea-badge { background: rgba(0,0,0,0.06); }
             <div style="background:rgba(128,128,128,0.12);border-radius:3px;height:4px;margin:6px 0;overflow:hidden;">
                 <div id="bar-prod-total" style="height:100%;width:0%;background:var(--success);border-radius:3px;transition:width 1s;"></div>
             </div>
-            <div style="font-size:0.68rem;color:var(--text-dim);">Prom: <b id="kpi-prod-avg-dia-ops">0</b> Tn/día · Proy: <b id="kpi-prod-proy-ops">0</b> Tn</div>
+            <div style="font-size:0.66rem;color:var(--text-dim);"><span id="kpi-efic-global">— Tn/h</span> · <span id="kpi-hrs-total">— hs</span></div>
         </div>
-
-        <!-- EFICIENCIA GLOBAL -->
-        <div class="kpi-card" style="border-top:3px solid var(--accent-2);">
-            <h4 style="color:var(--accent-2);font-size:0.62rem;letter-spacing:1px;margin-bottom:6px;">EFICIENCIA GLOBAL</h4>
-            <div style="display:flex;align-items:baseline;gap:5px;">
-                <span id="kpi-efic-global" style="font-size:2rem;font-weight:800;color:var(--text-main);">—</span>
-                <small style="color:var(--text-dim);">Tn/h</small>
-            </div>
-            <div style="font-size:0.68rem;color:var(--text-dim);margin-top:6px;">Horas operadas: <b id="kpi-hrs-total">0</b> hs</div>
-            <div style="font-size:0.68rem;color:var(--text-dim);">Horas perdidas: <b id="kpi-hrs-perdidas-total" style="color:var(--danger);">0</b> hs</div>
-        </div>
-
-        <!-- PRIMARIA ALTAIRAC -->
         <div class="kpi-card" id="kpi-primaria" style="border-top:3px solid var(--success);">
-            <h4 style="color:var(--success);font-size:0.62rem;letter-spacing:1px;margin-bottom:6px;">PRIMARIA ALTAIRAC</h4>
+            <h4 style="color:var(--success);font-size:0.62rem;letter-spacing:1px;margin-bottom:6px;">🟡 PRIMARIA (Altairac)</h4>
             <div style="display:flex;align-items:baseline;gap:5px;">
                 <span id="text-primaria" style="font-size:1.8rem;font-weight:800;color:var(--text-main);">0</span>
                 <small style="color:var(--text-dim);">Tn</small>
@@ -1311,10 +1286,8 @@ body.theme-light .tarea-badge { background: rgba(0,0,0,0.06); }
                 <span id="kpi-primaria-efic">— Tn/h</span><span id="kpi-primaria-hrs">— hs</span>
             </div>
         </div>
-
-        <!-- PLANTA 1 -->
         <div class="kpi-card" id="kpi-planta1" style="border-top:3px solid var(--warning);">
-            <h4 style="color:var(--warning);font-size:0.62rem;letter-spacing:1px;margin-bottom:6px;">PLANTA 1</h4>
+            <h4 style="color:var(--warning);font-size:0.62rem;letter-spacing:1px;margin-bottom:6px;">🟢 PLANTA 1</h4>
             <div style="display:flex;align-items:baseline;gap:5px;">
                 <span id="text-planta1" style="font-size:1.8rem;font-weight:800;color:var(--text-main);">0</span>
                 <small style="color:var(--text-dim);">Tn</small>
@@ -1326,10 +1299,8 @@ body.theme-light .tarea-badge { background: rgba(0,0,0,0.06); }
                 <span id="kpi-planta1-efic">— Tn/h</span><span id="kpi-planta1-hrs">— hs</span>
             </div>
         </div>
-
-        <!-- PRIMARIA SVEDALA -->
         <div class="kpi-card" id="kpi-planta2" style="border-top:3px solid var(--accent);">
-            <h4 style="color:var(--accent);font-size:0.62rem;letter-spacing:1px;margin-bottom:6px;">PRIMARIA SVEDALA</h4>
+            <h4 style="color:var(--accent);font-size:0.62rem;letter-spacing:1px;margin-bottom:6px;">🟠 PLANTA 2 (Svedala)</h4>
             <div style="display:flex;align-items:baseline;gap:5px;">
                 <span id="text-planta2" style="font-size:1.8rem;font-weight:800;color:var(--text-main);">0</span>
                 <small style="color:var(--text-dim);">Tn</small>
@@ -1341,13 +1312,67 @@ body.theme-light .tarea-badge { background: rgba(0,0,0,0.06); }
                 <span id="kpi-planta2-efic">— Tn/h</span><span id="kpi-planta2-hrs">— hs</span>
             </div>
         </div>
-
     </div>
 
-    <!-- ── FILA 3: Gráfico turnos + Registro (colapsable) ── -->
-    <div class="grid-main" style="grid-template-columns:1.3fr 1fr;margin-bottom:1.2rem;">
+    <!-- ── FILA 2: Comparativa operadores por planta ── -->
+    <div class="grid-main" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:1.2rem;">
 
-        <!-- Ranking operarios + paradas -->
+        <!-- Primaria -->
+        <div class="chart-card" style="border-top:2px solid var(--success);">
+            <div class="chart-header">
+                <span style="font-size:0.78rem;font-weight:700;color:var(--success);">🟡 Primaria — Operadores</span>
+                <select id="filtro-turno-prim" onchange="renderComparativaOperadores()" style="padding:3px 6px;font-size:0.72rem;width:auto;margin-bottom:0;">
+                    <option value="Todos">Todos</option><option value="Dia">Día</option><option value="Noche">Noche</option>
+                </select>
+            </div>
+            <div style="height:180px;margin-top:8px;"><canvas id="chart-comp-prim"></canvas></div>
+            <div id="stats-comp-prim" style="margin-top:8px;font-size:0.68rem;color:var(--text-dim);"></div>
+        </div>
+
+        <!-- Planta 1 -->
+        <div class="chart-card" style="border-top:2px solid var(--warning);">
+            <div class="chart-header">
+                <span style="font-size:0.78rem;font-weight:700;color:var(--warning);">🟢 Planta 1 — Operadores</span>
+                <select id="filtro-turno-p1" onchange="renderComparativaOperadores()" style="padding:3px 6px;font-size:0.72rem;width:auto;margin-bottom:0;">
+                    <option value="Todos">Todos</option><option value="Dia">Día</option><option value="Noche">Noche</option>
+                </select>
+            </div>
+            <div style="height:180px;margin-top:8px;"><canvas id="chart-comp-p1"></canvas></div>
+            <div id="stats-comp-p1" style="margin-top:8px;font-size:0.68rem;color:var(--text-dim);"></div>
+        </div>
+
+        <!-- Planta 2 -->
+        <div class="chart-card" style="border-top:2px solid var(--accent);">
+            <div class="chart-header">
+                <span style="font-size:0.78rem;font-weight:700;color:var(--accent);">🟠 Planta 2 — Operadores</span>
+                <select id="filtro-turno-p2" onchange="renderComparativaOperadores()" style="padding:3px 6px;font-size:0.72rem;width:auto;margin-bottom:0;">
+                    <option value="Todos">Todos</option><option value="Dia">Día</option><option value="Noche">Noche</option>
+                </select>
+            </div>
+            <div style="height:180px;margin-top:8px;"><canvas id="chart-comp-p2"></canvas></div>
+            <div id="stats-comp-p2" style="margin-top:8px;font-size:0.68rem;color:var(--text-dim);"></div>
+        </div>
+    </div>
+
+    <!-- ── FILA 3: Horas por trituradora → conectado con Desgaste ── -->
+    <div class="grid-main" style="grid-template-columns:1fr 1fr;margin-bottom:1.2rem;">
+        <div class="chart-card">
+            <div class="chart-header">
+                <span><i class="ph-fill ph-clock" style="color:var(--accent);"></i> Horas por Trituradora — Mes</span>
+                <span style="font-size:0.68rem;color:var(--text-dim);">Alimenta el Monitor de Desgaste</span>
+            </div>
+            <div style="height:220px;"><canvas id="chart-horas-maquinas"></canvas></div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-header">
+                <span><i class="ph-fill ph-chart-bar" style="color:var(--warning);"></i> Motivos de Parada</span>
+            </div>
+            <div style="height:220px;"><canvas id="chart-motivos-parada"></canvas></div>
+        </div>
+    </div>
+
+    <!-- ── FILA 4: Ranking operarios global + Registro ── -->
+    <div class="grid-main" style="grid-template-columns:1.3fr 1fr;margin-bottom:1.2rem;">
         <div class="chart-card">
             <div class="chart-header">
                 <span><i class="ph-fill ph-users" style="color:var(--accent);"></i> Ranking Operarios</span>
@@ -1358,20 +1383,14 @@ body.theme-light .tarea-badge { background: rgba(0,0,0,0.06); }
                 </select>
             </div>
             <div style="max-height:200px;overflow-y:auto;">
-                <table class="ranking-table"><thead><tr><th>Operario</th><th>Sector</th><th>Turno</th><th>Rendimiento</th><th>Pérdida USD</th></tr></thead><tbody id="worker-ranking-body"></tbody></table>
-            </div>
-            <div style="margin-top:1rem;border-top:1px solid var(--border);padding-top:1rem;">
-                <div style="font-size:0.72rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;margin-bottom:8px;">Motivos de Parada — Horas perdidas</div>
-                <div style="height:180px;"><canvas id="chart-motivos-parada"></canvas></div>
+                <table class="ranking-table"><thead><tr><th>Operario</th><th>Sector</th><th>Turno</th><th>Rendimiento</th><th>Pérdida USD</th></tr></thead><tbody id="ranking-ops-body"></tbody></table>
             </div>
         </div>
-
-        <!-- Registro de Turno (colapsable) -->
         <div class="chart-card">
             <div class="chart-header" onclick="toggleSection('registro-turno')" style="cursor:pointer;user-select:none;">
                 <span><i class="ph-fill ph-clock" style="color:var(--accent);"></i> Registrar Turno</span>
                 <div style="display:flex;align-items:center;gap:8px;">
-                    <span id="turno-semana-badge" style="font-size:0.7rem;font-weight:700;padding:3px 8px;border-radius:20px;background:rgba(59,130,246,0.15);color:var(--accent);"></span>
+                    <span id="turno-semana-badge" style="font-size:0.7rem;font-weight:700;padding:3px 8px;border-radius:6px;background:rgba(59,130,246,0.1);color:var(--accent);"></span>
                     <span id="caret-registro-turno" style="font-size:0.8rem;color:var(--text-dim);">▸</span>
                 </div>
             </div>
@@ -1379,11 +1398,11 @@ body.theme-light .tarea-badge { background: rgba(0,0,0,0.06); }
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0;">
                     <div>
                         <label style="font-size:0.66rem;color:var(--text-dim);">Fecha</label>
-                        <input type="date" id="adv-date" onchange="actualizarBadgeTurno()" required style="width:100%;padding:5px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.82rem;">
+                        <input type="date" id="adv-date" onchange="actualizarBadgeTurno()" required style="width:100%;padding:5px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);">
                     </div>
                     <div>
                         <label style="font-size:0.66rem;color:var(--text-dim);">Turno</label>
-                        <select id="adv-shift" required style="width:100%;padding:5px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.82rem;">
+                        <select id="adv-shift" required style="width:100%;padding:5px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);">
                             <option value="Dia">Turno Dia</option>
                             <option value="Noche">Turno Noche</option>
                         </select>
@@ -1391,7 +1410,7 @@ body.theme-light .tarea-badge { background: rgba(0,0,0,0.06); }
                 </div>
                 <div style="margin-bottom:8px;">
                     <label style="font-size:0.66rem;color:var(--text-dim);">Estado del turno</label>
-                    <select id="adv-status" required style="width:100%;padding:5px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.82rem;">
+                    <select id="adv-status" required style="width:100%;padding:5px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);">
                         <option value="Normal">Normal</option>
                         <option value="Parada Mecanica">Parada Mecanica</option>
                         <option value="Parada Electrica">Parada Electrica</option>
@@ -1399,110 +1418,71 @@ body.theme-light .tarea-badge { background: rgba(0,0,0,0.06); }
                         <option value="Sin Material">Sin Material</option>
                     </select>
                 </div>
-                <div style="font-size:0.66rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;margin-bottom:6px;">Tn y horas por planta</div>
-                <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;">
-                    <!-- Primaria -->
-                    <div style="background:rgba(34,197,94,0.07);border:1px solid rgba(34,197,94,0.2);border-radius:8px;padding:8px;">
-                        <div style="font-size:0.63rem;font-weight:700;color:var(--success);margin-bottom:5px;">PRIMARIA ALTAIRAC</div>
-                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;">
-                            <select id="adv-worker-primaria" style="grid-column:1/-1;padding:3px 5px;border-radius:5px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.72rem;margin-bottom:2px;"><option value="">Plantista...</option></select>
-                            <input type="number" id="adv-tn-primaria" placeholder="Tn" min="0" step="0.1" style="padding:4px;border-radius:5px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.78rem;">
-                            <input type="number" id="adv-hs-primaria" placeholder="Hs mol." min="0" step="0.1" style="padding:4px;border-radius:5px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.78rem;">
-                            <input type="number" id="adv-hs-alteirac" placeholder="Hs Alt." min="0" step="0.1" style="padding:4px;border-radius:5px;border:1px solid rgba(245,158,11,0.3);background:rgba(245,158,11,0.04);color:var(--text-main);font-size:0.72rem;">
-                        </div>
-                    </div>
-                    <!-- Planta 1 -->
-                    <div style="background:rgba(251,191,36,0.07);border:1px solid rgba(251,191,36,0.2);border-radius:8px;padding:8px;">
-                        <div style="font-size:0.63rem;font-weight:700;color:var(--warning);margin-bottom:5px;">PLANTA 1</div>
-                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;">
-                            <select id="adv-worker-planta1" style="grid-column:1/-1;padding:3px 5px;border-radius:5px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.72rem;margin-bottom:2px;"><option value="">Plantista...</option></select>
-                            <input type="number" id="adv-tn-planta1" placeholder="Tn" min="0" step="0.1" style="padding:4px;border-radius:5px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.78rem;">
-                            <input type="number" id="adv-hs-planta1" placeholder="Hs mol." min="0" step="0.1" style="padding:4px;border-radius:5px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.78rem;">
-                            <input type="number" id="adv-hs-n1560" placeholder="Hs 1560" min="0" step="0.1" style="padding:4px;border-radius:5px;border:1px solid rgba(180,83,9,0.2);background:rgba(59,130,246,0.03);color:var(--text-main);font-size:0.72rem;">
-                            <input type="number" id="adv-hs-hp400" placeholder="Hs HP400" min="0" step="0.1" style="padding:4px;border-radius:5px;border:1px solid rgba(180,83,9,0.2);background:rgba(59,130,246,0.03);color:var(--text-main);font-size:0.72rem;">
-                        </div>
-                    </div>
-                    <!-- Svedala -->
-                    <div style="background:rgba(59,130,246,0.06);border:1px solid rgba(180,83,9,0.18);border-radius:8px;padding:8px;">
-                        <div style="font-size:0.63rem;font-weight:700;color:var(--accent);margin-bottom:5px;">PRIMARIA SVEDALA</div>
-                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;">
-                            <select id="adv-worker-planta2" style="grid-column:1/-1;padding:3px 5px;border-radius:5px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.72rem;margin-bottom:2px;"><option value="">Plantista...</option></select>
-                            <input type="number" id="adv-tn-planta2" placeholder="Tn" min="0" step="0.1" style="padding:4px;border-radius:5px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.78rem;">
-                            <input type="number" id="adv-hs-planta2" placeholder="Hs mol." min="0" step="0.1" style="padding:4px;border-radius:5px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.78rem;">
-                            <input type="number" id="adv-hs-svedala" placeholder="Hs Sved." min="0" step="0.1" style="padding:4px;border-radius:5px;border:1px solid rgba(139,92,246,0.25);background:rgba(139,92,246,0.03);color:var(--text-main);font-size:0.72rem;">
-                            <input type="number" id="adv-hs-hp100" placeholder="Hs HP100" min="0" step="0.1" style="padding:4px;border-radius:5px;border:1px solid rgba(139,92,246,0.25);background:rgba(139,92,246,0.03);color:var(--text-main);font-size:0.72rem;">
-                        </div>
-                    </div>
+                <div style="font-size:0.72rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;margin-bottom:8px;">Tn y horas por planta</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;margin-bottom:8px;">
+                    <div><label style="font-size:0.6rem;color:var(--text-dim);display:block;">PRIMARIA ALTAIRAC</label><input type="text" id="adv-op-primaria" placeholder="Plantista..." style="width:100%;padding:4px 6px;border-radius:5px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.75rem;"></div>
+                    <div><label style="font-size:0.6rem;color:var(--text-dim);display:block;">PLANTA 1</label><input type="text" id="adv-op-planta1" placeholder="Plantista..." style="width:100%;padding:4px 6px;border-radius:5px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.75rem;"></div>
+                    <div><label style="font-size:0.6rem;color:var(--text-dim);display:block;">PRIMARIA SVEDALA</label><input type="text" id="adv-op-planta2" placeholder="Plantista..." style="width:100%;padding:4px 6px;border-radius:5px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.75rem;"></div>
+                    <div><label style="font-size:0.6rem;color:var(--text-dim);display:block;">Hs Perdidas</label><input type="number" id="adv-hs-perdidas" value="0.0" step="0.5" style="width:100%;padding:4px 6px;border-radius:5px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.75rem;"></div>
                 </div>
-                <div style="display:grid;grid-template-columns:auto 1fr;gap:8px;margin-bottom:10px;align-items:center;">
-                    <div style="background:rgba(239,68,68,0.08);border:1px dashed var(--danger);border-radius:8px;padding:6px 12px;text-align:center;">
-                        <div style="font-size:0.6rem;color:var(--text-dim);">Hs Perdidas</div>
-                        <div id="adv-hrs-perdidas" style="font-weight:800;font-size:1.1rem;color:var(--danger);">0.0</div>
-                    </div>
-                    <input type="text" id="adv-obs" placeholder="Observaciones del turno..." style="padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.82rem;">
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;margin-bottom:8px;">
+                    <div><label style="font-size:0.6rem;color:var(--success);display:block;">Tn Primaria</label><input type="number" id="adv-tn-primaria" placeholder="0" step="10" style="width:100%;padding:4px 6px;border-radius:5px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.75rem;"></div>
+                    <div><label style="font-size:0.6rem;color:var(--warning);display:block;">Hs N1560</label><input type="number" id="adv-hs-n1560" placeholder="0" step="0.5" style="width:100%;padding:4px 6px;border-radius:5px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.75rem;"></div>
+                    <div><label style="font-size:0.6rem;color:var(--warning);display:block;">Hs HP400</label><input type="number" id="adv-hs-hp400" placeholder="0" step="0.5" style="width:100%;padding:4px 6px;border-radius:5px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.75rem;"></div>
+                    <div><label style="font-size:0.6rem;color:var(--accent);display:block;">Tn Svedala</label><input type="number" id="adv-tn-svedala" placeholder="0" step="10" style="width:100%;padding:4px 6px;border-radius:5px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-main);font-size:0.75rem;"></div>
                 </div>
-                <button type="button" onclick="registrarTurnoCompleto()" style="width:100%;background:var(--accent);color:#fff;border:none;border-radius:8px;padding:9px;font-size:0.88rem;font-weight:700;cursor:pointer;">
-                    <i class="ph-fill ph-check-circle"></i> Registrar Turno Completo
-                </button>
+                <button onclick="guardarTurnoCompleto()" style="width:100%;padding:10px;font-weight:700;margin-top:4px;"><i class="ph-fill ph-check"></i> Registrar Turno Completo</button>
             </div>
         </div>
     </div>
 
-    <!-- ── FILA 4: Importar Excel (colapsable) ── -->
-    <div class="chart-card" style="margin-bottom:1.2rem;border:1px dashed var(--accent);background:rgba(217,119,6,0.03);">
+    <!-- ── FILA 5: Importar Excel + Turnos importados ── -->
+    <div class="chart-card" style="margin-bottom:1.2rem;">
         <div class="chart-header" onclick="toggleSection('import-prod')" style="cursor:pointer;user-select:none;">
             <span><i class="ph-fill ph-file-xls" style="color:var(--success);"></i> Importar Excel de Producción</span>
-            <span id="caret-import-prod" style="font-size:0.78rem;color:var(--text-dim);">▸</span>
+            <span id="caret-import-prod" style="font-size:0.78rem;color:var(--text-dim);margin-left:auto;">▸</span>
         </div>
         <div id="content-import-prod" style="display:none;margin-top:1rem;">
             <label class="upload-zone" for="file-produccion"
                 ondragover="event.preventDefault();this.classList.add('dragover')"
                 ondragleave="this.classList.remove('dragover')"
-                ondrop="event.preventDefault();this.classList.remove('dragover');document.getElementById('file-produccion').files=event.dataTransfer.files;procesarExcelProduccion();">
-                <input type="file" id="file-produccion" accept=".xlsx,.xls" onchange="procesarExcelProduccion()">
-                <i class="ph-fill ph-upload-simple" style="font-size:1.8rem;color:var(--accent);margin-bottom:8px;display:block;"></i>
+                ondrop="event.preventDefault();this.classList.remove('dragover');var f=event.dataTransfer.files;if(f.length)procesarExcelProduccion(f[0]);">
+                <input type="file" id="file-produccion" accept=".xlsx,.xls" onchange="procesarExcelProduccion(this.files[0])">
+                <i class="ph-fill ph-upload-simple" style="font-size:1.6rem;color:var(--success);margin-bottom:6px;display:block;"></i>
                 <b style="color:var(--text-main);">Arrastrar el Excel de Produccion mensual o hacer clic</b><br>
                 <small style="color:var(--text-dim);">Detecta la hoja del mes activo — Lee turnos, Tn y horas por trituradora</small>
             </label>
-            <div id="prod-import-status" style="display:none;margin-top:12px;padding:10px 14px;border-radius:8px;font-size:0.82rem;font-weight:700;align-items:center;gap:10px;"></div>
         </div>
+        <div id="prod-import-status" style="display:none;padding:10px 14px;border-radius:8px;font-size:0.82rem;font-weight:600;margin-top:0.5rem;border:1px solid transparent;"></div>
     </div>
 
-    <!-- ── FILA 5: Tabla de turnos importados (oculta hasta que haya datos) ── -->
-    <div id="prod-turnos-panel" style="display:none;margin-bottom:1.2rem;">
-        <div class="chart-card">
-            <div class="chart-header">
-                <span><i class="ph-fill ph-calendar-check"></i> Turnos Importados — Asignar Operario</span>
-                <div style="display:flex;gap:8px;align-items:center;">
-                    <span id="prod-turnos-count" style="font-size:0.78rem;color:var(--text-dim);"></span>
-                    <button type="button" onclick="guardarOperariosAsignados()" style="background:var(--success);padding:6px 14px;font-size:0.8rem;display:flex;align-items:center;gap:5px;">
-                        <i class="ph-bold ph-check"></i> Guardar Asignaciones
-                    </button>
-                </div>
-            </div>
-            <div style="max-height:380px;overflow-y:auto;">
-                <table class="ranking-table" style="width:100%;">
-                    <thead><tr><th>Dia</th><th>Turno</th><th>Produccion</th><th>Hs Trabajo</th><th>Hs Perdidas</th><th>Trituradoras</th><th>Obs.</th><th>Operario</th></tr></thead>
-                    <tbody id="prod-turnos-tbody"></tbody>
-                </table>
-            </div>
+    <!-- Turnos importados -->
+    <div id="prod-turnos-panel" style="display:none;" class="chart-card">
+        <div class="chart-header">
+            <span><i class="ph-fill ph-table" style="color:var(--success);"></i> Turnos Importados</span>
+            <span id="prod-turnos-count" style="font-size:0.72rem;color:var(--text-dim);"></span>
+        </div>
+        <div style="overflow-x:auto;margin-top:8px;">
+            <table class="ranking-table" style="width:100%;font-size:0.72rem;">
+                <thead><tr>
+                    <th>Fecha</th><th>Turno</th>
+                    <th style="color:var(--warning);background:rgba(245,158,11,0.08);">Op. Primaria</th>
+                    <th style="color:var(--warning);background:rgba(245,158,11,0.08);">Tn</th>
+                    <th style="background:rgba(245,158,11,0.08);">Hs</th>
+                    <th style="background:rgba(245,158,11,0.08);">Hs Perd.</th>
+                    <th style="color:var(--success);background:rgba(34,197,94,0.08);">Op. Planta 1</th>
+                    <th style="background:rgba(34,197,94,0.08);">Máquinas P1</th>
+                    <th style="color:#f97316;background:rgba(249,115,22,0.08);">Op. Planta 2</th>
+                    <th style="background:rgba(249,115,22,0.08);">Tn Sved.</th>
+                    <th style="background:rgba(249,115,22,0.08);">Máquinas P2</th>
+                </tr></thead>
+                <tbody id="prod-turnos-tbody"></tbody>
+            </table>
         </div>
     </div>
-
-    <!-- IDs legacy que el JS puede buscar (ocultos) -->
-    <span id="kpi-mensual-primaria" style="display:none;"></span>
-    <span id="kpi-mensual-planta1"  style="display:none;"></span>
-    <span id="kpi-mensual-planta2"  style="display:none;"></span>
-    <span id="tn-manual-mes-label"  style="display:none;"></span>
-    <span id="tn-manual-primaria"   style="display:none;"></span>
-    <span id="tn-actual-primaria"   style="display:none;"></span>
-    <span id="tn-manual-planta2"    style="display:none;"></span>
-    <span id="tn-actual-planta2"    style="display:none;"></span>
-    <span id="tn-historial-body"    style="display:none;"></span>
 
 </section>
 
-<!-- ======== COSTOS ======== -->
 <section id="costos" class="view">
 
     <!-- Resumen inteligente -->
@@ -1930,7 +1910,22 @@ body.theme-light .tarea-badge { background: rgba(0,0,0,0.06); }
             </div>
         </div>
     </div>
-    <!-- ── GRÁFICOS PRIMERO ── -->
+    <!-- ── TÍTULO Y BORRADO ── -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;margin-top:0.5rem;flex-wrap:wrap;gap:12px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:40px;height:40px;border-radius:10px;background:rgba(217,119,6,0.15);display:flex;align-items:center;justify-content:center;">
+                <i class="ph-fill ph-car-profile" style="color:var(--accent);font-size:1.4rem;"></i>
+            </div>
+            <div>
+                <h3 style="margin:0;font-size:1.1rem;color:var(--text-main);font-weight:800;">Expedientes por Vehículo</h3>
+                <p style="margin:0;font-size:0.75rem;color:var(--text-dim);">Resumen de gastos y mantenimiento histórico</p>
+            </div>
+        </div>
+        <button onclick="limpiarFlotaLiviana()" style="background:rgba(239,68,68,0.08);color:var(--danger);border:1px solid rgba(239,68,68,0.2);padding:10px 18px;border-radius:12px;font-size:0.85rem;font-weight:700;display:flex;align-items:center;gap:8px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='rgba(239,68,68,0.15)';this.style.borderColor='rgba(239,68,68,0.4)';" onmouseout="this.style.background='rgba(239,68,68,0.08)';this.style.borderColor='rgba(239,68,68,0.2)';">
+            <i class="ph-bold ph-trash"></i> Eliminar todos los datos
+        </button>
+    </div>
+
     <!-- Expedientes grid — aparece tras importar -->
     <div id="expedientes-flota" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-bottom:1.2rem;"></div>
 
@@ -1941,7 +1936,10 @@ body.theme-light .tarea-badge { background: rgba(0,0,0,0.06); }
     <div class="chart-card" style="margin-bottom:1.2rem;">
         <div class="chart-header" onclick="toggleSection('import-flota')" style="cursor:pointer;user-select:none;margin-bottom:0;">
             <span><i class="ph-fill ph-file-xls" style="color:var(--success);"></i> Importar Excel de Gastos de Camionetas</span>
-            <span id="caret-import-flota" style="font-size:0.78rem;color:var(--text-dim);margin-left:auto;">▸</span>
+            <div style="display:flex;align-items:center;gap:8px;margin-left:auto;">
+                <button onclick="limpiarFlotaLiviana();event.stopPropagation()" style="background:rgba(239,68,68,0.1);color:var(--danger);border:1px solid rgba(239,68,68,0.2);padding:3px 8px;font-size:0.7rem;border-radius:5px;min-height:unset;">✕ Limpiar</button>
+                <span id="caret-import-flota" style="font-size:0.78rem;color:var(--text-dim);">▸</span>
+            </div>
         </div>
         <div id="content-import-flota" style="display:none;margin-top:1rem;">
             <label class="upload-zone" for="file-flota"
@@ -2252,7 +2250,24 @@ body.theme-light .tarea-badge { background: rgba(0,0,0,0.06); }
         </div>
         <div class="chart-card" style="border-top:2px solid var(--danger);grid-column:1/-1;">
             <div class="chart-header" style="display:flex;justify-content:space-between;align-items:center;">
-                <span><i class="ph-fill ph-database"></i> Auditoría y Corrección de Datos</span>
+            <!-- ── LIMPIAR PRODUCCIÓN DEL MES ── -->
+    <div class="chart-card" style="margin-bottom:1.2rem;border-left:3px solid var(--danger);">
+        <div class="chart-header">
+            <span><i class="ph-fill ph-trash" style="color:var(--danger);"></i> Limpiar Datos de Producción</span>
+        </div>
+        <p style="font-size:0.78rem;color:var(--text-dim);margin:10px 0;">
+            Borra todos los registros importados desde Excel para el mes activo. Los registros cargados manualmente no se borran.
+        </p>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <div id="limpiar-prod-mes-label" style="font-size:0.82rem;font-weight:700;color:var(--text-main);padding:6px 12px;background:rgba(128,128,128,0.1);border-radius:6px;"></div>
+            <button onclick="limpiarProduccionMes()" style="background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);color:var(--danger);border-radius:8px;padding:8px 18px;font-size:0.82rem;font-weight:700;cursor:pointer;">
+                <i class="ph-fill ph-trash"></i> Borrar producción del mes activo
+            </button>
+        </div>
+        <div id="limpiar-prod-status" style="display:none;margin-top:10px;padding:8px 12px;border-radius:6px;font-size:0.78rem;font-weight:700;"></div>
+    </div>
+
+            <span><i class="ph-fill ph-database"></i> Auditoría y Corrección de Datos</span>
                 <select id="db-selector" style="padding:6px 10px;font-size:0.85rem;width:auto;margin-bottom:0;cursor:pointer;">
                     <option value="produccion">Partes de Producción</option>
                     <option value="voladuras">Historial de Voladuras</option>
@@ -2690,27 +2705,27 @@ body.theme-light .tarea-badge { background: rgba(0,0,0,0.06); }
 </div>
 
 <!-- ═══ MÓDULOS JS ═══ -->
-    <script src="js/appState.js?v=18"></script>
-    <script src="js/utils.js?v=18"></script>
-    <script src="js/dataSync.js?v=18"></script>
-    <script src="js/uiUpdates.js?v=18"></script>
-    <script src="js/charts.js?v=18"></script>
-    <script src="js/reports.js?v=18"></script>
-    <script src="js/forms.js?v=18"></script>
-    <script src="js/blasting.js?v=18"></script>
-    <script src="js/wear.js?v=18"></script>
-    <script src="js/fleet.js?v=18"></script>
-    <script src="js/assets.js?v=18"></script>
-    <script src="js/production.js?v=18"></script>
-    <script src="js/inventory.js?v=18"></script>
-    <script src="js/maintenance.js?v=18"></script>
-    <script src="js/scales.js?v=18"></script>
-    <script src="js/live.js?v=18"></script>
-    <script src="js/analytics.js?v=18"></script>
-    <script src="js/ai.js?v=18"></script>
-    <script src="js/ai_analysis.js?v=18"></script>
-    <script src="js/importConsumosExcel.js?v=18"></script>
-    <script src="js/main.js?v=18"></script>
+    <script src="js/appState.js?v=26"></script>
+    <script src="js/utils.js?v=26"></script>
+    <script src="js/dataSync.js?v=26"></script>
+    <script src="js/uiUpdates.js?v=26"></script>
+    <script src="js/charts.js?v=26"></script>
+    <script src="js/reports.js?v=26"></script>
+    <script src="js/forms.js?v=26"></script>
+    <script src="js/blasting.js?v=26"></script>
+    <script src="js/wear.js?v=26"></script>
+    <script src="js/fleet.js?v=26"></script>
+    <script src="js/assets.js?v=26"></script>
+    <script src="js/production.js?v=26"></script>
+    <script src="js/inventory.js?v=26"></script>
+    <script src="js/maintenance.js?v=26"></script>
+    <script src="js/scales.js?v=26"></script>
+    <script src="js/live.js?v=26"></script>
+    <script src="js/analytics.js?v=26"></script>
+    <script src="js/ai.js?v=26"></script>
+    <script src="js/ai_analysis.js?v=26"></script>
+    <script src="js/importConsumosExcel.js?v=26"></script>
+    <script src="js/main.js?v=26"></script>
 
     <!-- PWA Service Worker -->
     <script>

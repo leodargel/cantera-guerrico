@@ -155,7 +155,13 @@ window.showView = function(viewId) {
     });
 
     // Trigger view-specific logic
-    if (viewId === 'produccion' && typeof renderTurnosPanel === 'function') renderTurnosPanel();
+    if (viewId === 'produccion') {
+        if (typeof renderTurnosPanel === 'function') renderTurnosPanel();
+        setTimeout(function() {
+            if (typeof renderComparativaOperadores === 'function') renderComparativaOperadores();
+            if (typeof renderHorasMaquinasYDesgaste === 'function') renderHorasMaquinasYDesgaste();
+        }, 200);
+    }
     if (viewId === 'inventario' && typeof renderInventario === 'function') renderInventario();
     if (viewId === 'mantenimiento-plan' && typeof renderPlanMantenimiento === 'function') renderPlanMantenimiento();
     if (viewId === 'turno-live' && typeof initTurnoLive === 'function') initTurnoLive();

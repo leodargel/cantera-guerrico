@@ -41,7 +41,8 @@ window.procesarExcelFlotaLiviana = function(fileArg) {
             var SKIP_KEYWORDS = [
                 'sub total','subtotal','total de gasto','total gasto',
                 'combustible de camioneta','total gastos camioneta',
-                'v. mca','v.mca','puma','diferencia','total gastos'
+                'v. mca','v.mca','puma','diferencia','total gastos',
+                'total general','resumen','gastos generales','descripcion'
             ];
 
             // Process each sheet using OBJECT MODE — headers from row 1
@@ -78,12 +79,22 @@ window.procesarExcelFlotaLiviana = function(fileArg) {
                 if (!keyValor || !keyUbic) return; // can't process without these
 
                 objRows.forEach(function(row) {
-                    var desc  = (row[keyDesc]  || '').toString().trim();
-                    var categ = keyCateg ? (row[keyCateg] || '').toString().trim() : '';
-                    var ubic  = (row[keyUbic]  || '').toString().trim();
-                    var mesRaw= keyMes  ? (row[keyMes]   || '') : '';
+                    var desc  = row[keyDesc];
+                    var categ = keyCateg ? row[keyCateg] : '';
+                    var ubic  = row[keyUbic];
+                    var mesRaw= keyMes ? row[keyMes] : '';
 
-                    if (!desc || !ubic) return;
+                    // Skip undefined/null/empty values
+                    if (desc === undefined || desc === null) return;
+                    desc = desc.toString().trim();
+                    if (!desc || desc.toLowerCase() === 'undefined' || desc.toLowerCase() === 'null') return;
+
+                    if (!ubic || ubic === 'undefined' || ubic === null) return;
+                    ubic = ubic.toString().trim();
+                    if (!ubic || ubic.toLowerCase() === 'undefined') return;
+
+                    categ = (categ && categ !== 'undefined') ? categ.toString().trim() : '';
+                    mesRaw = mesRaw || '';
 
                     // Skip summary/total rows
                     var dl = _norm(desc);
@@ -757,4 +768,17 @@ window.cerrarExpedientePesada = function(e) {
     var m = document.getElementById('pesada-modal-overlay');
     if (m) m.remove();
     document.body.style.overflow = '';
+};
+
+// ── Limpiar flota liviana completa ────────────────────────────
+window.limpiarFlotaLiviana = function() {
+    var cant = (appState.data.gastosFlota || []).length;
+    if (cant === 0) { alert('No hay datos de flota liviana para borrar.'); return; }
+    if (!confirm('¿Borrar todos los ' + cant + ' registros de Flota Liviana?\nVas a poder reimportar el Excel después.')) return;
+    appState.data.gastosFlota = [];
+    syncAndRefreshData();
+    renderExpedientesFlota();
+    if (typeof updateFlotaLivianaCharts === 'function') updateFlotaLivianaCharts();
+    var st = document.getElementById('flota-import-status');
+    if (st) { st.style.display='block'; st.style.background='rgba(34,197,94,0.1)'; st.style.border='1px solid var(--success)'; st.textContent='✅ Datos borrados. Podés reimportar el Excel.'; }
 };

@@ -85,12 +85,16 @@ window.syncAndRefreshData = function() {
     // Process Voladuras Data
     appState.data.voladuras.forEach(vol => {
         const m = getMonthSafe(vol.fecha);
+        const y = getYearSafe(vol.fecha);
         if (m >= 0 && m < 12) {
             const cost = parseFloat(vol.cost || 0), tn = parseFloat(vol.tn || 0), 
                   kg = parseFloat(vol.kg || 0), pozos = parseInt(vol.pozos || 0);
-            appState.monthlyData.blastCost[m] += cost;
+            // Solo acumular el año activo en los gráficos mensuales
+            if (y === currentYear) {
+                appState.monthlyData.blastCost[m] += cost;
+            }
             totalBlastCost += cost;
-            if (m === currentMonth && getYearSafe(vol.fecha) === currentYear) {
+            if (m === currentMonth && y === currentYear) {
                 blastTnMes += tn; blastCostMes += cost; blastKgMes += kg; 
                 blastPozosMes += pozos; blastCountMes++;
             }
@@ -314,7 +318,9 @@ window.syncAndRefreshData = function() {
     // Blast list
     const blastListContainer = document.getElementById('blast-list');
     if (blastListContainer) {
-        const ultimas = [...appState.data.voladuras].reverse().slice(0, 5);
+        const ultimas = [...appState.data.voladuras]
+            .filter(v => getMonthSafe(v.fecha) === currentMonth && getYearSafe(v.fecha) === currentYear)
+            .reverse().slice(0, 5);
         blastListContainer.innerHTML = ultimas.length === 0
             ? '<div class="empty-state"><i class="ph-fill ph-fire"></i><p>Sin voladuras registradas.<br>Completá el formulario <b>Registrar Evento</b> para agregar.</p></div>'
             : ultimas.map(v => `
@@ -352,6 +358,8 @@ window.syncAndRefreshData = function() {
     if (typeof renderConsumosGuardados === 'function') renderConsumosGuardados();
     if (typeof updateFlotaLivianaCharts === 'function' && document.getElementById('chart-gastos-movil')) updateFlotaLivianaCharts();
     if (typeof updateFlotaPesadaCharts === 'function' && document.getElementById('chart-gastos-pesada')) updateFlotaPesadaCharts();
+    if (typeof renderComparativaOperadores === 'function' && document.getElementById('chart-comp-prim')) renderComparativaOperadores();
+    if (typeof renderHorasMaquinasYDesgaste === 'function' && document.getElementById('chart-horas-maquinas')) renderHorasMaquinasYDesgaste();
     if (typeof updateMaintChart === 'function') updateMaintChart();
     if (typeof updateStopCharts === 'function') updateStopCharts();
     if (typeof updateSmartSummaries === 'function') updateSmartSummaries();
@@ -506,12 +514,18 @@ window.sincronizarOneDrive = async function() {
     }
 };
 // Mantenimiento Pesado y Liviano Excel
+window._procesandoProduccion = false;
 window.procesarExcelProduccion = function(inputEl) {
+    // Guard against double-run
+    if (window._procesandoProduccion) return;
+    window._procesandoProduccion = true;
+    setTimeout(function() { window._procesandoProduccion = false; }, 3000);
+
     var file = (inputEl instanceof File) ? inputEl
              : (inputEl && inputEl.files && inputEl.files[0])
                ? inputEl.files[0]
                : (document.getElementById('file-produccion') || {files:[]}).files[0];
-    if (!file) return;
+    if (!file) { window._procesandoProduccion = false; return; }
 
     var statusEl = document.getElementById('prod-import-status');
     function setStatus(msg, type) {

@@ -360,9 +360,32 @@ function _calcHorasAcumuladas(machId, piezaId, piezaData) {
     var fechaInicio = piezaData.fecha ? new Date(piezaData.fecha + 'T00:00:00') : null;
     var total = 0;
 
+    // Leer horas desde los registros de producción importados (Excel)
     (appState.data.produccion || []).forEach(function(p) {
+        if (!p.fromExcel) return;
+        var fp = new Date((p.fecha || '2000-01-01') + 'T12:00:00');
+        if (fechaInicio && fp < fechaInicio) return;
+
+        if (p.sector === 'Planta Primaria' && machId === 'alteirac') {
+            total += parseFloat(p.hsProd || p.hrs || 0);
+        } else if (p.sector === 'Planta 1' && p.maquinas) {
+            var machMap = { n1560:'n1560', hp400:'hp400', fc44:'fc44', cta34:'cta34', cta25:'cta25' };
+            if (machMap[machId] !== undefined) {
+                total += parseFloat(p.maquinas[machMap[machId]] || 0);
+            }
+        } else if (p.sector === 'Planta 2' && p.maquinas) {
+            var machMap2 = { svedala:'svedala', gp100:'gp100', hp200:'hp200' };
+            if (machMap2[machId] !== undefined) {
+                total += parseFloat(p.maquinas[machMap2[machId]] || 0);
+            }
+        }
+    });
+
+    // También sumar horas manuales si las hay
+    (appState.data.produccion || []).forEach(function(p) {
+        if (p.fromExcel) return; // ya procesado arriba
         if (p.sector !== mach.planta) return;
-        var fp = new Date(p.fecha + 'T12:00:00');
+        var fp = new Date((p.fecha || '2000-01-01') + 'T12:00:00');
         if (fechaInicio && fp < fechaInicio) return;
         if (p.maquinas && p.maquinas[machId] !== undefined) {
             total += parseFloat(p.maquinas[machId]) || 0;
@@ -370,6 +393,7 @@ function _calcHorasAcumuladas(machId, piezaId, piezaData) {
             total += parseFloat(p.hrs || 0);
         }
     });
+
     return total;
 }
 

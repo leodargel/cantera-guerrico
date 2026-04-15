@@ -223,24 +223,35 @@ window.setupTheme = function() {
 };
 
 window.setupMesFilter = function() {
-    const filter = document.getElementById('global-month-filter');
+    var filter = document.getElementById('global-month-filter');
     if (!filter) return;
-    
-    const now = new Date();
-    const savedMes = localStorage.getItem('guerrico-mes-activo');
-    const currentVal = savedMes || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    filter.value = currentVal;
-    // Sync global state from saved
-    if (savedMes) {
-        const [y, m] = savedMes.split('-');
-        currentYear = parseInt(y);
-        currentMonth = parseInt(m) - 1;
-        prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+
+    // Restaurar mes guardado o usar mes actual
+    var savedMes = localStorage.getItem('guerrico-mes-activo');
+    var now = new Date();
+    var defaultVal = savedMes || (now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0'));
+    filter.value = defaultVal;
+
+    // Sincronizar variables globales con el valor inicial
+    var parts = defaultVal.split('-');
+    if (parts.length === 2) {
+        window.currentYear  = parseInt(parts[0]);
+        window.currentMonth = parseInt(parts[1]) - 1;
+        window.prevMonth    = window.currentMonth === 0 ? 11 : window.currentMonth - 1;
     }
 
-    filter.addEventListener('change', (e) => {
-        if (!e.target.value) return;
-        if (typeof updateDashboardFromFilter === 'function') updateDashboardFromFilter();
+    // Listener: actualiza currentMonth/Year cuando el usuario cambia el mes
+    filter.addEventListener('change', function(e) {
+        var val = e.target.value;
+        if (!val) return;
+        var p = val.split('-');
+        if (p.length !== 2) return;
+        window.currentYear  = parseInt(p[0]);
+        window.currentMonth = parseInt(p[1]) - 1;
+        window.prevMonth    = window.currentMonth === 0 ? 11 : window.currentMonth - 1;
+        localStorage.setItem('guerrico-mes-activo', val);
+        console.log('[MesFilter] Mes cambiado a:', window.currentMonth + 1, '/', window.currentYear);
+        if (typeof syncAndRefreshData === 'function') syncAndRefreshData();
     });
 };
 
